@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const rimrafPkg = require('rimraf');
+const rimraf = rimrafPkg.rimraf || rimrafPkg;
+const rimrafSync = rimrafPkg.rimrafSync || rimrafPkg.sync;
 
 const colors = {
   cyan: '\x1b[36m',
@@ -13,7 +16,6 @@ const colors = {
 
 const TARGET_DIR = path.join(__dirname, '..', 'python-portable');
 const CHUNK_EXT = '.chunk';
-// GitHub hard limit is 100MB. We use 90MB to be safe and avoid warnings.
 const CHUNK_SIZE = 1024 * 1024 * 90;
 
 function getAllFiles(dirPath, arrayOfFiles) {
@@ -37,9 +39,7 @@ function splitFile(filePath) {
   const stats = fs.statSync(filePath);
   const fileName = path.basename(filePath);
 
-  if (stats.size <= CHUNK_SIZE) return; // Skip small files
-
-  // Skip files that are already chunks
+  if (stats.size <= CHUNK_SIZE) return;
   if (fileName.includes(CHUNK_EXT)) return;
 
   console.log(
@@ -53,7 +53,10 @@ function splitFile(filePath) {
 
   try {
     while ((bytesRead = fs.readSync(fd, buffer, 0, CHUNK_SIZE, null)) > 0) {
-      const chunkName = `${filePath}${CHUNK_EXT}${String(part).padStart(3, '0')}`;
+      const chunkName = `${filePath}${CHUNK_EXT}${String(part).padStart(
+        3,
+        '0'
+      )}`;
       const dataToWrite =
         bytesRead < CHUNK_SIZE ? buffer.slice(0, bytesRead) : buffer;
       fs.writeFileSync(chunkName, dataToWrite);
@@ -64,30 +67,22 @@ function splitFile(filePath) {
     fs.closeSync(fd);
   }
 
-  // Remove the original large file so it doesn't get committed to git
   fs.unlinkSync(filePath);
   console.log(`   🗑️  Removed original: ${fileName}`);
 }
 
 function joinFile(firstChunkPath) {
-  // Reconstruct original filename from file.ext.chunk001
   const originalPath = firstChunkPath.slice(0, -9);
   const baseName = path.basename(originalPath);
 
   if (fs.existsSync(originalPath)) {
     console.log(`   ⏭️  Skipping ${baseName} (already exists)`);
-    // We do not delete chunks here in case the user wants to keep them for git
-    // But usually, in a build process, you might want to.
-    // For now, we assume this is "dev setup", so we keep chunks if logic dictates,
-    // OR we delete them if we want a clean folder.
-    // The previous logic deleted chunks after merge. Let's stick to that for 'join'.
     return;
   }
 
   console.log(`🧵 Joining: ${baseName}`);
 
   const dir = path.dirname(firstChunkPath);
-  // Filter files that start with the original filename + chunk extension
   const files = fs
     .readdirSync(dir)
     .filter((f) => f.startsWith(path.basename(originalPath) + CHUNK_EXT))
@@ -99,14 +94,11 @@ function joinFile(firstChunkPath) {
     const chunkPath = path.join(dir, chunkFile);
     const data = fs.readFileSync(chunkPath);
     writeStream.write(data);
-    // We delete the chunks after joining so the app uses the real file
-    // Note: Run 'split' again before committing to git!
     fs.unlinkSync(chunkPath);
   }
 
   writeStream.end();
 
-  // Restore executable permissions for binaries
   if (
     originalPath.includes('/bin/') ||
     originalPath.endsWith('.so') ||
@@ -124,9 +116,9 @@ function joinFile(firstChunkPath) {
   console.log(`   ✅ Restored.`);
 }
 
-const action = process.argv[2];
-
-// Check if python-portable exists. If not, try to clone it.
+// ---------------------------------------------------------
+//  CLONE LOGIC (Ensure .git is removed)
+// ---------------------------------------------------------
 if (!fs.existsSync(TARGET_DIR)) {
   console.log(
     `${colors.yellow}Target directory not found: ${TARGET_DIR}${colors.reset}`
@@ -138,10 +130,23 @@ if (!fs.existsSync(TARGET_DIR)) {
       'git clone https://github.com/Md-Siam-Mia-Main/python-portable.git',
       {
         cwd: path.dirname(TARGET_DIR),
-        stdio: 'inherit', // Show git output
+        stdio: 'inherit',
       }
     );
     console.log(`${colors.green}Clone successful.${colors.reset}`);
+
+    // Remove .git folder immediately to keep it clean
+    const gitDir = path.join(TARGET_DIR, '.git');
+    if (fs.existsSync(gitDir)) {
+      console.log(`${colors.gray}Cleaning up .git directory...${colors.reset}`);
+      try {
+        if (rimrafSync) rimrafSync(gitDir);
+        else rimraf.sync(gitDir);
+      } catch (e) {
+        // Fallback
+        fs.rmSync(gitDir, { recursive: true, force: true });
+      }
+    }
   } catch (e) {
     console.error(
       `${colors.red}Failed to clone python-portable: ${e.message}${colors.reset}`
@@ -152,6 +157,8 @@ if (!fs.existsSync(TARGET_DIR)) {
     process.exit(1);
   }
 }
+
+const action = process.argv[2];
 
 if (action === 'split') {
   console.log(`🔍 Scanning ${TARGET_DIR} for large files (>90MB)...`);
@@ -172,7 +179,6 @@ if (action === 'split') {
   console.log(`🔍 Scanning ${TARGET_DIR} for chunked files...`);
   const files = getAllFiles(TARGET_DIR);
 
-  // Find only the first chunks (.chunk001)
   const startChunks = files.filter((f) => f.endsWith(`${CHUNK_EXT}001`));
 
   if (startChunks.length === 0) {
@@ -183,5 +189,5 @@ if (action === 'split') {
   }
   console.log('✨ Reassembly complete.');
 } else {
-  console.log('Usage: node large-file-manager.js [join|split]');
+  // If no args, just exit successfully (used for clone-only check)
 }
