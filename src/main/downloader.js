@@ -203,7 +203,7 @@ class Downloader {
     let stdoutOutput = '';
 
     let stallTimeout;
-    const STALL_LIMIT = 120000; // 2 minutes
+    const STALL_LIMIT = 120000;
 
     const resetStallTimer = () => {
       clearTimeout(stallTimeout);
@@ -315,17 +315,24 @@ class Downloader {
 
   async postProcess(videoInfo, job, fullLog) {
     try {
-      const files = fs.readdirSync(this.videoPath);
+      const files = await fs.promises.readdir(this.videoPath);
       let infoFile = files.find(
-        (f) => f.startsWith(videoInfo.id) && f.endsWith('.info.json')
+        (f) => f.startsWith(videoInfo.id + '.') && f.endsWith('.info.json')
       );
+
+      if (!infoFile) {
+        infoFile = files.find(
+          (f) => f.startsWith(videoInfo.id) && f.endsWith('.info.json')
+        );
+      }
 
       if (!infoFile)
         throw new Error(`Could not find metadata file for ${videoInfo.id}.`);
 
       const infoJsonPath = path.join(this.videoPath, infoFile);
-      const info = JSON.parse(fs.readFileSync(infoJsonPath, 'utf-8'));
-      fs.unlinkSync(infoJsonPath);
+      const infoData = await fs.promises.readFile(infoJsonPath, 'utf-8');
+      const info = JSON.parse(infoData);
+      await fs.promises.unlink(infoJsonPath);
 
       const realId = info.id;
 
@@ -374,7 +381,7 @@ class Downloader {
       const descFile = files.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.description')
       );
-      if (descFile) fs.unlinkSync(path.join(this.videoPath, descFile));
+      if (descFile) await fs.promises.unlink(path.join(this.videoPath, descFile));
 
       const artistString = info.artist || info.creator || info.uploader;
       const artistNames = parseArtistNames(artistString);

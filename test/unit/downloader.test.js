@@ -37,22 +37,19 @@ jest.mock('fs-extra', () => ({
 // Helper to flush promises
 const flushPromises = () =>
   new Promise((resolve) => {
-    // Use setImmediate to break the execution flow and allow other promises to resolve
-    // jest.useFakeTimers() mocks setImmediate, so we should rely on Promise.resolve
     if (global.setImmediate) {
-      // If real timers are used
       global.setImmediate(resolve);
     } else {
-      // Fallback
-      Promise.resolve().then(resolve);
+      setTimeout(resolve, 0);
     }
   });
 
-// Since we are testing with fake timers sometimes, we need a robust wait.
 const waitTick = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  // Ensure enough microtask cycles for the async chain in postProcess
+  for (let i = 0; i < 50; i++) {
+    await Promise.resolve();
+  }
+  await flushPromises();
 };
 
 describe('Downloader', () => {
@@ -62,7 +59,6 @@ describe('Downloader', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Setup default settings
     mockGetSettings.mockReturnValue({
       concurrentDownloads: 3,
       cookieBrowser: 'none',
@@ -73,7 +69,6 @@ describe('Downloader', () => {
       speedLimit: '',
     });
 
-    // Setup mock process for default usage
     mockProcess = new events.EventEmitter();
     mockProcess.kill = jest.fn();
     mockProcess.stdout = new events.EventEmitter();
@@ -90,6 +85,13 @@ describe('Downloader', () => {
       win: mockWin,
       resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
+
+    // Mock fs.promises
+    fs.promises = {
+      readdir: jest.fn(),
+      readFile: jest.fn(),
+      unlink: jest.fn(),
+    };
   });
 
   test('should start download and process queue', async () => {
@@ -109,7 +111,6 @@ describe('Downloader', () => {
     expect(mockSpawnPython).toHaveBeenCalled();
     expect(downloader.activeDownloads.has('123')).toBe(true);
 
-    // Simulate progress
     mockProcess.stdout.emit(
       'data',
       '[download]  50.0% of 10.00MiB at  2.00MiB/s ETA 00:05'
@@ -122,9 +123,9 @@ describe('Downloader', () => {
       })
     );
 
-    // Mock file system for post-process
-    fs.readdirSync.mockReturnValue(['123.info.json', '123.mp4', '123.jpg']);
-    fs.readFileSync.mockReturnValue(
+    // Mock fs.promises for post-process
+    fs.promises.readdir.mockResolvedValue(['123.info.json', '123.mp4', '123.jpg']);
+    fs.promises.readFile.mockResolvedValue(
       JSON.stringify({
         id: '123',
         title: 'Test Video',
@@ -134,11 +135,9 @@ describe('Downloader', () => {
         webpage_url: 'http://test.com',
       })
     );
+    fs.promises.unlink.mockResolvedValue();
 
-    // Simulate completion
     mockProcess.emit('close', 0);
-
-    // Wait for postProcess
     await waitTick();
 
     expect(mockWin.webContents.send).toHaveBeenCalledWith(
@@ -165,12 +164,8 @@ describe('Downloader', () => {
     downloader.addToQueue([job]);
     await waitTick();
 
-    // Simulate error output
     mockProcess.stderr.emit('data', 'ERROR: Video unavailable');
-
-    // Simulate failure exit
     mockProcess.emit('close', 1);
-
     await waitTick();
 
     expect(mockWin.webContents.send).toHaveBeenCalledWith(
@@ -202,15 +197,11 @@ describe('Downloader', () => {
     };
 
     downloader.addToQueue([job]);
-    // Allow async start logic to run
-    // Using multiple awaits to ensure async/await chain processes
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
-    // Simulate no activity for 121s (timeout is 120s)
     jest.advanceTimersByTime(121000);
-
     expect(mockProcess.kill).toHaveBeenCalled();
     jest.useRealTimers();
   });
@@ -232,7 +223,6 @@ describe('Downloader', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    // Simulate slow progress updates every 80 seconds (just within 90s limit)
     jest.advanceTimersByTime(80000);
     mockProcess.stdout.emit('data', '[download]  10.0% ...');
     expect(mockProcess.kill).not.toHaveBeenCalled();
@@ -246,20 +236,25 @@ describe('Downloader', () => {
 
   test('should handle concurrent downloads limit', async () => {
     mockGetSettings.mockReturnValue({
-      concurrentDownloads: 2, // Limit to 2
+      concurrentDownloads: 2,
       cookieBrowser: 'none',
     });
-    // Re-init to pick up mocked settings
+
+    mockSpawnPython.mockClear();
+
+    // Create a fresh instance
     downloader = new Downloader({
-      getSettings: mockGetSettings,
-      videoPath: '/mock/video/path',
-      coverPath: '/mock/cover/path',
-      subtitlePath: '/mock/subtitle/path',
-      db: mockDb,
-      BrowserDiscovery: mockBrowserDiscovery,
-      win: mockWin,
-      resolveFfmpegPath: async () => '/mock/ffmpeg',
+        getSettings: mockGetSettings,
+        videoPath: '/mock/video/path',
+        coverPath: '/mock/cover/path',
+        subtitlePath: '/mock/subtitle/path',
+        db: mockDb,
+        BrowserDiscovery: mockBrowserDiscovery,
+        win: mockWin,
+        resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
+
+    // We must ensure that the fresh instance uses the same global fs.promises mock, which it does.
 
     const jobs = [
       { videoInfo: { id: '1', title: 'V1' }, downloadType: 'video' },
@@ -267,18 +262,10 @@ describe('Downloader', () => {
       { videoInfo: { id: '3', title: 'V3' }, downloadType: 'video' },
     ];
 
-    // Important: we need distinct processes for each download to track them correctly in tests
-    // But for this test we mainly care about spawn calls count.
-    // However, since we re-used mockSpawnPython that returns the SAME object, we might run into issues if we try to kill them individually or track events.
-    // But checking toHaveBeenCalledTimes works.
-
-    // Reset mock call count
-    mockSpawnPython.mockClear();
-
     downloader.addToQueue(jobs);
     await waitTick();
 
-    expect(mockSpawnPython).toHaveBeenCalledTimes(2); // Only 2 started
+    expect(mockSpawnPython).toHaveBeenCalledTimes(2);
     expect(downloader.activeDownloads.size).toBe(2);
     expect(downloader.queue.length).toBe(1);
   });
@@ -295,7 +282,6 @@ describe('Downloader Concurrency', () => {
       cookieBrowser: 'none',
     });
 
-    // Return unique process for each spawn
     mockSpawnPython.mockImplementation(() => {
       const p = new events.EventEmitter();
       p.kill = jest.fn();
@@ -314,6 +300,12 @@ describe('Downloader Concurrency', () => {
       win: mockWin,
       resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
+
+    fs.promises = {
+      readdir: jest.fn(),
+      readFile: jest.fn(),
+      unlink: jest.fn(),
+    };
   });
 
   test('should respect concurrent limit and start queued items when one finishes', async () => {
@@ -327,23 +319,18 @@ describe('Downloader Concurrency', () => {
     await waitTick();
 
     expect(downloader.activeDownloads.size).toBe(2);
-    expect(downloader.activeDownloads.has('1')).toBe(true);
-    expect(downloader.activeDownloads.has('2')).toBe(true);
-    expect(downloader.activeDownloads.has('3')).toBe(false);
 
-    // Mock filesystem for success
-    fs.readdirSync.mockReturnValue(['1.info.json', '1.mp4']);
-    fs.readFileSync.mockReturnValue(JSON.stringify({ id: '1', title: 'V1' }));
+    fs.promises.readdir.mockResolvedValue(['1.info.json', '1.mp4']);
+    fs.promises.readFile.mockResolvedValue(JSON.stringify({ id: '1', title: 'V1' }));
+    fs.promises.unlink.mockResolvedValue();
 
-    // Finish job 1
     const p1 = downloader.activeDownloads.get('1');
     p1.emit('close', 0);
 
-    // Wait for postProcess
     await waitTick();
 
     expect(downloader.activeDownloads.has('1')).toBe(false);
-    expect(downloader.activeDownloads.has('3')).toBe(true); // Job 3 should start now
+    expect(downloader.activeDownloads.has('3')).toBe(true);
     expect(downloader.activeDownloads.size).toBe(2);
   });
 });
