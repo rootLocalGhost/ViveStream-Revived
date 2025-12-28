@@ -16,7 +16,6 @@ const colors = {
   reset: '\x1b[0m',
 };
 
-// Helper to normalize paths for electron-builder (it prefers / even on Windows)
 function toPosix(p) {
   return p.split(path.sep).join(path.posix.sep);
 }
@@ -105,7 +104,6 @@ function getPlatformConfig() {
         ],
       };
     default:
-      // Fallback or throw if someone tries mac on a non-mac machine or explicitly asks for it
       if (args.includes('--mac') || platform === 'darwin') {
         throw new Error('macOS build is no longer supported.');
       }
@@ -196,8 +194,8 @@ async function executeCommand(command, args, cwd) {
           console.error(
             `\n${colors.red}--- BUILD FAILURE LOGS ---${colors.reset}`
           );
-          console.error(stderrLog.slice(-2000));
-          console.error(stdoutLog.slice(-1000));
+          console.error(stderrLog.slice(-10000));
+          if (stderrLog.length < 100) console.error(stdoutLog.slice(-5000));
           console.error(
             `${colors.red}--------------------------${colors.reset}\n`
           );
@@ -208,13 +206,26 @@ async function executeCommand(command, args, cwd) {
   });
 }
 
+function safeMoveSync(source, dest) {
+  if (path.resolve(source) === path.resolve(dest)) return;
+  try {
+    fs.renameSync(source, dest);
+  } catch (err) {
+    if (err.code === 'EXDEV') {
+      fs.copyFileSync(source, dest);
+      fs.unlinkSync(source);
+    } else {
+      throw err;
+    }
+  }
+}
+
 function moveArtifacts(sourceDir, destDir) {
   if (!fs.existsSync(sourceDir)) return [];
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
 
   const files = fs.readdirSync(sourceDir);
   const movedFiles = [];
-  // Added .tar.gz and .tar.xz
   const interestingExtensions = [
     '.exe',
     '.msi',
@@ -235,9 +246,15 @@ function moveArtifacts(sourceDir, destDir) {
     if (interestingExtensions.some((ext) => file.endsWith(ext))) {
       const dest = path.join(destDir, file);
       try {
-        if (path.relative(fullPath, dest) !== '') fs.renameSync(fullPath, dest);
+        if (path.relative(fullPath, dest) !== '') {
+          safeMoveSync(fullPath, dest);
+        }
         movedFiles.push(file);
-      } catch (e) {}
+      } catch (e) {
+        console.error(
+          `${colors.red}Failed to move ${file}: ${e.message}${colors.reset}`
+        );
+      }
     }
   }
   return movedFiles;
@@ -401,7 +418,8 @@ async function runBuild() {
       '!**/helpers/**',
     ],
     extraResources: extraResources,
-    compression: debug ? 'store' : 'maximum',
+    // FIX: Use 'normal' compression to avoid OOM in Docker
+    compression: debug ? 'store' : 'normal',
     asar: true,
     win: {
       target:
@@ -418,7 +436,6 @@ async function runBuild() {
       runAfterFinish: true,
       shortcutName: 'ViveStream',
     },
-    // MSI Configuration
     msi: {
       oneClick: false,
       perMachine: true,
@@ -428,7 +445,6 @@ async function runBuild() {
     linux: {
       target:
         platformConfig.id === 'linux' ? platformConfig.target : ['AppImage'],
-      // FIXED: Point to the directory for Linux, not the file
       icon: toPosix(path.join(rootDir, 'assets')),
       category: 'Video',
       executableName: 'vivestream-revived',
@@ -436,7 +452,22 @@ async function runBuild() {
       synopsis: 'Offline media player and downloader',
       description: 'Your personal, offline, and stylish media sanctuary.',
     },
-    // Removed MacOS configuration
+    deb: {
+      compression: 'gz',
+    },
+    // FIX for RPM Build Code 9: Safe naming and lower compression
+    rpm: {
+      fpm: [
+        '--rpm-rpmbuild-define',
+        '_build_id_links none',
+        '--rpm-rpmbuild-define',
+        '_enable_debug_packages 0',
+        '--rpm-compression',
+        'bzip2',
+        '--name',
+        'vivestream-revived',
+      ],
+    },
   };
 
   fs.writeFileSync(tempConfigPath, JSON.stringify(buildConfig, null, 2));
