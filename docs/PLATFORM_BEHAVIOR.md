@@ -28,7 +28,7 @@ _Note: We could build a `.pkg` installer (Wizard style), but on macOS, this is c
 - **AppImage:** This is a portable executable. It is not "installed". To uninstall, the user simply deletes the file. We cannot intervene.
 - **Deb / RPM:** These are installed via system package managers (`apt`, `dnf`, `dpkg`).
   - **Install:** Handled by the system.
-  - **Uninstall:** Handled by `sudo apt remove livestream`.
+  - **Uninstall:** Handled by `sudo apt remove com.vivestream.revived.app`.
   - **Data Removal:** While Linux packages support `postrm` (post-remove) scripts, these scripts run as **root** in a non-interactive terminal environment. We cannot launch a GUI popup asking "Do you want to delete data?" from a background root process. It is also against Linux conventions to touch the user's `/home/` directory during a system-level package removal.
 - **Solution:** Like macOS, Linux users should use the in-app **Settings > Danger Zone** options to clean up before uninstalling.
 
