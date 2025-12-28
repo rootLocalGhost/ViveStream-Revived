@@ -4,7 +4,6 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and install system dependencies
-# Matching dependencies from prepare-ubuntu.sh and .github/workflows/linux-builds.yml
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -19,17 +18,22 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-dev \
     flatpak \
     flatpak-builder \
+    dbus \
+    dbus-x11 \
     ca-certificates \
     gnupg \
     python3 \
     python3-pip \
+    file \
+    desktop-file-utils \
+    udev \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Create python symlink (python -> python3)
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # Install Node.js 25
-# Using NodeSource repository
 RUN curl -fsSL https://deb.nodesource.com/setup_25.x | bash - && \
     apt-get install -y nodejs
 
