@@ -52,8 +52,6 @@ function getPythonDetails() {
   if (!pythonPath || !fs.existsSync(pythonPath)) {
     console.warn('[Python Core] Portable Python not found. Checking system...');
     try {
-      // Check if python3 or python matches our requirements (simple version check)
-      // This is a synchronous check to ensure we have a valid path before returning
       const { execSync } = require('child_process');
       try {
         const out = execSync('python3 --version').toString();
@@ -70,6 +68,17 @@ function getPythonDetails() {
       }
     } catch (e) {
       console.error('[Python Core] No system Python found either.');
+    }
+  }
+
+  // Ensure execution permissions on non-Windows platforms
+  if (pythonPath && fs.existsSync(pythonPath) && process.platform !== 'win32') {
+    try {
+      fs.chmodSync(pythonPath, 0o755);
+    } catch (e) {
+      console.warn(
+        `[Python Core] Failed to chmod python binary: ${e.message}. Attempting to run anyway.`
+      );
     }
   }
 
