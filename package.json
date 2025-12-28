@@ -14,16 +14,15 @@
     "env:update": "node helpers/update-binaries.js",
     "vendor:init": "node helpers/vendor-init.js",
     "build": "node helpers/builder.js",
-    "build:debug": "node helpers/builder.js --debug",
     "build:win": "node helpers/builder.js --win",
+    "build:linux": "node helpers/linux-manager.js",
     "build:linux:all": "node helpers/builder.js --linux --target=all",
     "build:linux:rpm": "node helpers/builder.js --linux --target=rpm",
     "build:linux:deb": "node helpers/builder.js --linux --target=deb",
     "build:linux:appimage": "node helpers/builder.js --linux --target=AppImage",
     "build:linux:flatpak": "node helpers/builder.js --linux --target=flatpak",
     "build:linux:snap": "node helpers/builder.js --linux --target=snap",
-    "build:linux:tar": "node helpers/builder.js --linux --target=tar.gz,tar.xz",
-    "build:linux:ci": "node helpers/builder.js --linux --target=AppImage,deb,rpm,snap,flatpak,tar.gz,tar.xz",
+    "build:linux:docker": "./docker-build.sh --target=AppImage,deb,rpm,flatpak,tar.gz",
     "postinstall": "npm run rebuild && npm run files:join && npm run vendor:init",
     "test": "jest"
   },
@@ -36,11 +35,11 @@
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
     "jest": "^30.2.0",
-    "jest-environment-jsdom": "^29.7.0",
+    "jest-environment-jsdom": "^30.2.0",
     "rimraf": "^6.1.2"
   },
   "dependencies": {
-    "fs-extra": "^11.3.2",
+    "fs-extra": "^11.3.3",
     "knex": "^3.1.0",
     "sortablejs": "^1.15.6",
     "sqlite3": "^5.1.7"
