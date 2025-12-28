@@ -3,7 +3,7 @@
   "version": "11.0.0",
   "description": "Your personal, offline, and stylish media sanctuary. Revived.",
   "main": "src/main/main.js",
-  "author": "Md Siam Mia",
+  "author": "Md Siam Mia <vivestream.revived@example.com>",
   "license": "MIT",
   "scripts": {
     "start": "electron .",

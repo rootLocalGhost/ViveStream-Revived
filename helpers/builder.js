@@ -49,7 +49,6 @@ function parseTargets() {
           'deb',
           'rpm',
           'snap',
-          'flatpak',
           'tar.gz',
           'tar.xz',
         ];
@@ -381,93 +380,121 @@ async function runBuild() {
     }
   }
 
-  const buildConfig = {
-    appId: 'com.vivestream.revived.app',
-    productName: 'ViveStream Revived',
-    copyright: 'Copyright © 2025 Md Siam Mia',
-    directories: { output: 'release', buildResources: 'assets' },
-    files: [
-      'src/**/*',
-      'package.json',
-      'assets/**/*',
-      '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
-      '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
-      '!**/node_modules/*.d.ts',
-      '!**/node_modules/.bin',
-      '!vendor/**/*',
-      '!python-portable/**/*',
-      '!**/.git/**',
-      '!**/.github/**',
-      '!**/helpers/**',
-    ],
-    extraResources: extraResources,
-    compression: debug ? 'store' : 'maximum',
-    asar: true,
-    win: {
-      target:
-        platformConfig.id === 'win' ? platformConfig.target : ['nsis', 'msi'],
-      icon: toPosix(path.join(rootDir, 'assets', 'icon.ico')),
-      legalTrademarks: 'ViveStream',
-    },
-    nsis: {
-      oneClick: false,
-      perMachine: true,
-      allowToChangeInstallationDirectory: true,
-      deleteAppDataOnUninstall: false,
-      include: 'build/installer.nsh',
-      runAfterFinish: true,
-      shortcutName: 'ViveStream',
-    },
-    // MSI Configuration
-    msi: {
-      oneClick: false,
-      perMachine: true,
-      runAfterFinish: true,
-      shortcutName: 'ViveStream',
-    },
-    linux: {
-      target:
-        platformConfig.id === 'linux' ? platformConfig.target : ['AppImage'],
-      // FIXED: Point to the directory for Linux, not the file
-      icon: toPosix(path.join(rootDir, 'assets')),
-      category: 'Video',
-      executableName: 'vivestream-revived',
-      maintainer: 'Md Siam Mia <vivestream.revived@example.com>',
-      synopsis: 'Offline media player and downloader',
-      description: 'Your personal, offline, and stylish media sanctuary.',
-    },
-    // Removed MacOS configuration
-  };
+  // Determine if we need to split targets for Linux (sequential build)
+  // If target contains 'all' (which we mapped to full list), or multiple heavy targets.
+  // We will split: [AppImage, deb, rpm, tar.gz, tar.xz] in one go, [snap] in one go, [flatpak] in one go.
+  // This helps avoid OOM issues and allows isolated failure handling if needed.
 
-  fs.writeFileSync(tempConfigPath, JSON.stringify(buildConfig, null, 2));
+  let targetGroups = [];
+  const targets = platformConfig.target;
 
-  const builderArgs = [
-    'electron-builder',
-    '--config',
-    'temp-build-config.json',
-    platformConfig.cliFlag,
-  ];
-
-  if (shouldPublish) {
-    builderArgs.push('--publish', 'always');
+  if (platformConfig.id === 'linux' && targets.length > 3) {
+      // Split for reliability (granular)
+      if (targets.includes('deb') || targets.includes('rpm')) {
+          targetGroups.push(targets.filter(t => ['deb', 'rpm'].includes(t)));
+      }
+      if (targets.includes('AppImage')) targetGroups.push(['AppImage']);
+      if (targets.includes('tar.gz') || targets.includes('tar.xz')) {
+          targetGroups.push(targets.filter(t => ['tar.gz', 'tar.xz'].includes(t)));
+      }
+      if (targets.includes('snap')) targetGroups.push(['snap']);
   } else {
-    builderArgs.push('--publish', 'never');
+      targetGroups.push(targets);
   }
 
-  try {
-    await executeCommand('npx', builderArgs, rootDir);
-  } catch (e) {
-    if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
-    throw e;
+  for (const group of targetGroups) {
+      if (group.length === 0) continue;
+      console.log(`   ${colors.cyan}→  Building targets: ${group.join(', ')}${colors.reset}`);
+
+      const buildConfig = {
+        appId: 'com.vivestream.revived.app',
+        productName: 'ViveStream Revived',
+        copyright: 'Copyright © 2025 Md Siam Mia',
+        directories: { output: 'release', buildResources: 'assets' },
+        files: [
+          'src/**/*',
+          'package.json',
+          'assets/**/*',
+          '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
+          '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
+          '!**/node_modules/*.d.ts',
+          '!**/node_modules/.bin',
+          '!vendor/**/*',
+          '!python-portable/**/*',
+          '!**/.git/**',
+          '!**/.github/**',
+          '!**/helpers/**',
+        ],
+        extraResources: extraResources,
+        compression: debug ? 'store' : 'maximum',
+        asar: true,
+        win: {
+          target:
+            platformConfig.id === 'win' ? group : ['nsis', 'msi'],
+          icon: toPosix(path.join(rootDir, 'assets', 'icon.ico')),
+          legalTrademarks: 'ViveStream',
+        },
+        nsis: {
+          oneClick: false,
+          perMachine: true,
+          allowToChangeInstallationDirectory: true,
+          deleteAppDataOnUninstall: false,
+          include: 'build/installer.nsh',
+          runAfterFinish: true,
+          shortcutName: 'ViveStream',
+        },
+        // MSI Configuration
+        msi: {
+          oneClick: false,
+          perMachine: true,
+          runAfterFinish: true,
+          shortcutName: 'ViveStream',
+        },
+        linux: {
+          target:
+            platformConfig.id === 'linux' ? group : ['AppImage'],
+          // FIXED: Point to the directory for Linux, not the file
+          icon: toPosix(path.join(rootDir, 'assets')),
+          category: 'Video',
+          executableName: 'vivestream-revived',
+          maintainer: 'Md Siam Mia <vivestream.revived@example.com>',
+          synopsis: 'Offline media player and downloader',
+          description: 'Your personal, offline, and stylish media sanctuary.',
+        },
+        // Removed MacOS configuration
+      };
+
+      fs.writeFileSync(tempConfigPath, JSON.stringify(buildConfig, null, 2));
+
+      const builderArgs = [
+        'electron-builder',
+        '--config',
+        'temp-build-config.json',
+        platformConfig.cliFlag,
+      ];
+
+      if (shouldPublish) {
+        builderArgs.push('--publish', 'always');
+      } else {
+        builderArgs.push('--publish', 'never');
+      }
+
+      try {
+        await executeCommand('npx', builderArgs, rootDir);
+      } catch (e) {
+        if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
+        throw e;
+      }
+      if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
+
+      // Move artifacts immediately to avoid cleanup issues or overwrites
+      const movedFiles = moveArtifacts(releaseDir, finalArtifactDir);
+      if (movedFiles.length > 0)
+        movedFiles.forEach((f) => console.log(`   ✔ Moved: ${f}`));
   }
-  if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
 
   log('\n5/6', 'Organizing & Cleaning');
-
-  const movedFiles = moveArtifacts(releaseDir, finalArtifactDir);
-  if (movedFiles.length > 0)
-    movedFiles.forEach((f) => console.log(`   ✔ Moved: ${f}`));
-
+  // Final cleanup of unwanted files in the destination
   if (!debug) {
     cleanUnwantedFiles(finalArtifactDir);
     if (fs.existsSync(releaseDir)) {
