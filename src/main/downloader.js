@@ -143,13 +143,11 @@ class Downloader {
 
     if (job.downloadType === 'video') {
       if (resolvedFfmpegPath) {
-        // High quality merge mode (Requires FFmpeg)
         const qualityFilter =
           job.quality === 'best' ? '' : `[height<=${job.quality}]`;
         const formatString = `bestvideo[ext=mp4]${qualityFilter}+bestaudio[ext=m4a]/bestvideo[vcodec^=avc]${qualityFilter}+bestaudio/best[ext=mp4]/best`;
         args.push('-f', formatString, '--merge-output-format', 'mp4');
       } else {
-        // Fallback mode (No merging, single file only)
         this.emitLog(
           id,
           `[System]: Using single-file format (best[ext=mp4]) to bypass missing FFmpeg.`
@@ -162,8 +160,6 @@ class Downloader {
         if (this.settings.downloadAutoSubs) args.push('--write-auto-subs');
       }
     } else {
-      // Audio extraction requires FFmpeg for conversion (e.g. webm -> mp3)
-      // If ffmpeg missing, we must download best audio as-is
       if (resolvedFfmpegPath) {
         args.push(
           '-x',
@@ -181,19 +177,6 @@ class Downloader {
         args.push('-f', 'bestaudio');
       }
     }
-
-    // If the requestUrl is a direct video link, --playlist-items will be ignored by yt-dlp or might cause warnings.
-    // However, if we constructed requestUrl from an ID that was part of a playlist, passing --playlist-items is unnecessary
-    // because we are downloading a specific video ID.
-    // We only pass --playlist-items if the URL is actually a playlist URL.
-    // Since we process videos individually (via addToQueue loop in main.js), requestUrl is usually a video URL.
-    // So we generally skip adding --playlist-items here to avoid confusion, unless it's strictly required.
-    // But since the user might have provided a playlist URL + items, and main.js split them...
-    // Actually, checking if requestUrl contains "list=" might be better, but main.js converts everything to single video jobs.
-    // So we safely remove it here for single video jobs to prevent issues, OR we keep it if it's harmless.
-    // Given the issues, removing it for single video jobs is safer.
-
-    // if (job.playlistItems) args.push("--playlist-items", job.playlistItems);
 
     if (job.liveFromStart) args.push('--live-from-start');
     if (this.settings.removeSponsors && resolvedFfmpegPath)
@@ -219,24 +202,24 @@ class Downloader {
     let stderrOutput = '';
     let stdoutOutput = '';
 
-    // Safer timeout mechanism
     let stallTimeout;
     const STALL_LIMIT = 120000; // 2 minutes
 
     const resetStallTimer = () => {
       clearTimeout(stallTimeout);
       stallTimeout = setTimeout(() => {
-        const stallMsg = `\n[System]: Download stalled for ${STALL_LIMIT / 1000}s. Killing process to prevent zombie.`;
+        const stallMsg = `\n[System]: Download stalled for ${
+          STALL_LIMIT / 1000
+        }s. Killing process to prevent zombie.`;
         stderrOutput += stallMsg;
         this.emitLog(id, stallMsg);
         try {
           proc.kill('SIGKILL');
-        } catch (e) {} // Force kill
+        } catch (e) {}
       }, STALL_LIMIT);
     };
     resetStallTimer();
 
-    // Handle spawn-time errors specifically
     proc.on('error', (err) => {
       clearTimeout(stallTimeout);
       console.error(`[Downloader] Spawn Error (${id}):`, err);
@@ -251,7 +234,6 @@ class Downloader {
       if (this.activeDownloads.get(id) === proc) {
         this.activeDownloads.delete(id);
       }
-      // Ensure we clean up this job from queue logic
       if (this.win) {
         this.win.webContents.send('download-error', {
           id: id,
@@ -268,7 +250,6 @@ class Downloader {
       const str = data.toString();
       stdoutOutput += str;
 
-      // Only emit lines to UI to save IPC bandwidth, but keep full log internally if needed
       if (str.trim()) this.emitLog(id, str);
 
       const m = str.match(
@@ -298,12 +279,13 @@ class Downloader {
         this.activeDownloads.delete(id);
       }
 
-      const fullLog = `CMD: ${args.join(' ')}\n\nSTDOUT:\n${stdoutOutput}\n\nSTDERR:\n${stderrOutput}`;
+      const fullLog = `CMD: ${args.join(
+        ' '
+      )}\n\nSTDOUT:\n${stdoutOutput}\n\nSTDERR:\n${stderrOutput}`;
 
       if (code === 0) {
         await this.postProcess(videoInfo, job, fullLog);
       } else {
-        // Non-null exit code generic handler
         const errorMsg =
           parseYtDlpError(stderrOutput) || `Process exited with code ${code}`;
         console.warn(
@@ -334,13 +316,9 @@ class Downloader {
   async postProcess(videoInfo, job, fullLog) {
     try {
       const files = fs.readdirSync(this.videoPath);
-      // Try finding info file using videoInfo.id first
       let infoFile = files.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.info.json')
       );
-
-      // Fallback: If not found, maybe look for ANY .info.json that was just created?
-      // Unsafe if concurrent downloads.
 
       if (!infoFile)
         throw new Error(`Could not find metadata file for ${videoInfo.id}.`);
@@ -349,11 +327,8 @@ class Downloader {
       const info = JSON.parse(fs.readFileSync(infoJsonPath, 'utf-8'));
       fs.unlinkSync(infoJsonPath);
 
-      // Use the ID from the actual info.json as the authoritative ID
       const realId = info.id;
 
-      // Find any file starting with ID that isn't metadata/thumb
-      // We check both videoInfo.id and realId just in case
       const mediaFile = files.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
@@ -368,7 +343,6 @@ class Downloader {
       const mediaFilePath = path.join(this.videoPath, mediaFile);
 
       let finalCoverPath = null;
-      // Search for thumbnail using both IDs
       const thumbFile = files.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
