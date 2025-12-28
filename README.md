@@ -1,7 +1,8 @@
 <div align="center">
   <img src="./assets/Banner.png" alt="ViveStream Banner">
-  <h2>Your personal, offline, and stylish media sanctuary.</h2>
-  
+
+---
+
   <p>
     <!-- Release Info -->
     <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/releases">
@@ -10,7 +11,7 @@
     <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/blob/main/LICENSE">
       <img src="https://img.shields.io/github/license/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square&color=blue" alt="License">
     </a>
-    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-informational?style=flat-square" alt="Platform">
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-informational?style=flat-square" alt="Platform">
   </p>
 
   <p>
@@ -37,8 +38,6 @@
 </div>
 
 Welcome! **ViveStream** is a modern, offline-first media player built for those who want to curate their own collection of videos and music. It downloads content using `yt-dlp`, organizes it into a robust local database, and provides a polished, high-performance interface for you to enjoy your media without ads, buffering, or an internet connection.
-
-# The smooth, modern graphical user interface
 
 <img src="./assets/UI.png" alt="ViveStream UI">
 
@@ -110,28 +109,21 @@ See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` f
    cd ViveStream-Revived
    ```
 
-2. **Clone the Portable Python Environment:**
-   _This must be cloned directly into the project root._
-
-   ```bash
-   git clone https://github.com/Md-Siam-Mia-Main/python-portable.git
-   ```
-
-3. **Install dependencies:**
+2. **Install dependencies:**
    _This automatically reassembles any large files via the `postinstall` hook._
 
    ```bash
    npm install
    ```
 
-4. **Update/Hydrate Binaries (Optional but Recommended):**
+3. **Update/Hydrate Binaries (Optional but Recommended):**
    _Detects your OS and ensures `yt-dlp` and `static-ffmpeg` are up to date and executable._
 
    ```bash
    npm run env:update
    ```
 
-5. **Run the application:**
+4. **Run the application:**
 
    ```bash
    npm start
@@ -177,15 +169,18 @@ See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` f
 To package the application for your current platform:
 
 ```bash
+# Automatically detects the platform and the build format
+npm run build
+
 # Windows (creates .exe installer)
 npm run build:win
 
-# Linux (creates AppImage, deb, rpm, snap)
+# Linux (creates AppImage, deb, rpm, flatpak, tar.gz)
 npm run build:linux:all
 
-# macOS (creates .dmg)
-# Note: macOS builds must be signed/notarized for public distribution
-npm run build
+# Linux (Docker). You must have docker installed and running for this
+# This will create AppImage, deb, rpm, flatpak, tar.gz
+npm run build:linux:docker
 ```
 
 ---
