@@ -114,7 +114,6 @@ function startFfmpegResolution() {
 
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
 
-    // 1. Primary Check: bin/Scripts folder (Where update-binaries.js puts it)
     if (binDir) {
       const candidate = path.join(binDir, targetName);
       if (fs.existsSync(candidate)) {
@@ -130,7 +129,6 @@ function startFfmpegResolution() {
       }
     }
 
-    // 2. Secondary Check: Python Import (static_ffmpeg module)
     try {
       const script =
         'import static_ffmpeg.run; print(static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()[0])';
@@ -154,8 +152,7 @@ function startFfmpegResolution() {
       }
     } catch (e) {}
 
-    // 3. Fallback: Deep Search in Python Root
-    const searchRoot = path.dirname(path.dirname(binDir)); // Up 2 levels from Scripts/bin
+    const searchRoot = path.dirname(path.dirname(binDir));
 
     const findFfmpegDeep = (dir, depth = 0) => {
       if (depth > 6) return null;
@@ -378,7 +375,21 @@ ipcMain.on('maximize-window', () =>
 );
 ipcMain.on('close-window', () => win.close());
 ipcMain.on('tray-window', () => win.hide());
-ipcMain.on('open-external', (e, u) => shell.openExternal(u));
+
+// Security: Validate URLs before opening
+ipcMain.on('open-external', (e, u) => {
+  try {
+    const parsed = new url.URL(u);
+    if (['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+      shell.openExternal(u);
+    } else {
+      console.warn('Blocked opening potentially unsafe URL:', u);
+    }
+  } catch (err) {
+    console.error('Invalid URL passed to open-external:', u);
+  }
+});
+
 ipcMain.handle('open-media-folder', () => shell.openPath(viveStreamPath));
 ipcMain.handle('open-database-folder', () =>
   shell.openPath(app.getPath('userData'))
