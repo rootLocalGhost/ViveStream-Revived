@@ -150,6 +150,8 @@ describe('Downloader', () => {
   });
 
   test('should handle download errors', async () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+
     const job = {
       videoInfo: {
         id: 'fail',
@@ -182,6 +184,9 @@ describe('Downloader', () => {
         status: 'failed',
       })
     );
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   test('should detect stalled downloads', async () => {
