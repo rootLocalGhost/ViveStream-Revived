@@ -35,7 +35,7 @@ function getPythonPath() {
 function runCommand(cmd, args) {
   return new Promise((resolve, reject) => {
     console.log(`\n> ${cmd} ${args.join(' ')}`);
-    const child = spawn(cmd, args, { stdio: 'inherit', shell: true });
+    const child = spawn(cmd, args, { stdio: 'inherit' });
     child.on('close', (code) => {
       if (code === 0) resolve();
       else reject(new Error(`Command failed with code ${code}`));
@@ -60,6 +60,29 @@ function findFileRecursive(dir, filename) {
   return null;
 }
 
+function moveBinary(src, dest) {
+  try {
+    // 1. Copy
+    fs.copyFileSync(src, dest);
+
+    // 2. Verify Size
+    if (fs.existsSync(dest)) {
+      const srcStat = fs.statSync(src);
+      const destStat = fs.statSync(dest);
+
+      if (srcStat.size === destStat.size) {
+        // 3. Delete Source (Move)
+        console.log(`   ✔ Verified copy. Deleting source: ${src}`);
+        fs.unlinkSync(src);
+      } else {
+        console.warn(`   ⚠️ Copy size mismatch. Keeping source.`);
+      }
+    }
+  } catch (e) {
+    console.error(`   ❌ Failed to move binary: ${e.message}`);
+  }
+}
+
 async function main() {
   try {
     console.log('=========================================');
@@ -70,6 +93,22 @@ async function main() {
 
     if (!fs.existsSync(exe)) {
       throw new Error(`Python executable not found at: ${exe}`);
+    }
+
+    // 0. CHECK IF BINARIES EXIST
+    const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+    const probeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
+    const ffmpegDest = path.join(binDir, targetName);
+    const ffprobeDest = path.join(binDir, probeName);
+
+    if (fs.existsSync(ffmpegDest) && fs.existsSync(ffprobeDest)) {
+      console.log(
+        '✅ Binaries already exist in bin folder. Skipping download.'
+      );
+      // We still update pip packages to ensure python libs are fresh, but skip heavy binary download
+      // unless you want to force update everything.
+      // For build stability, we return here.
+      return;
     }
 
     if (process.platform !== 'win32') {
@@ -89,39 +128,43 @@ async function main() {
 
     // 2. Trigger Download
     console.log('Hydrating FFmpeg binaries (downloading if missing)...');
+    // Using simple string argument for spawn to avoid shell issues
     await runCommand(exe, [
       '-c',
-      '"import static_ffmpeg; static_ffmpeg.add_paths()"',
+      'import static_ffmpeg; static_ffmpeg.add_paths()',
     ]);
 
-    // 3. Consolidate FFmpeg to binDir
+    // 3. Consolidate (Move) FFmpeg to binDir
     console.log('Consolidating binaries...');
-    const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-    const probeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
 
     // Find where static_ffmpeg hid them (usually in site-packages)
-    // We search from the root of the python portable folder
-    const searchRoot = path.dirname(path.dirname(binDir)); // Go up two levels to catch Lib/site-packages
+    const searchRoot = path.dirname(path.dirname(binDir));
 
     const ffmpegSrc = findFileRecursive(searchRoot, targetName);
     const ffprobeSrc = findFileRecursive(searchRoot, probeName);
 
     if (ffmpegSrc) {
-      const dest = path.join(binDir, targetName);
-      console.log(`Copying FFmpeg:\n   From: ${ffmpegSrc}\n   To:   ${dest}`);
-      fs.copyFileSync(ffmpegSrc, dest);
-      if (process.platform !== 'win32') fs.chmodSync(dest, 0o755);
+      if (path.resolve(ffmpegSrc) !== path.resolve(ffmpegDest)) {
+        console.log(
+          `Moving FFmpeg:\n   From: ${ffmpegSrc}\n   To:   ${ffmpegDest}`
+        );
+        moveBinary(ffmpegSrc, ffmpegDest);
+        if (process.platform !== 'win32') fs.chmodSync(ffmpegDest, 0o755);
+      }
     } else {
       console.warn(
-        '⚠️  Could not locate downloaded FFmpeg binary to consolidate.'
+        '   ⚠️  Could not locate FFmpeg binary downloaded by static_ffmpeg.'
       );
     }
 
     if (ffprobeSrc) {
-      const dest = path.join(binDir, probeName);
-      console.log(`Copying FFprobe:\n   From: ${ffprobeSrc}\n   To:   ${dest}`);
-      fs.copyFileSync(ffprobeSrc, dest);
-      if (process.platform !== 'win32') fs.chmodSync(dest, 0o755);
+      if (path.resolve(ffprobeSrc) !== path.resolve(ffprobeDest)) {
+        console.log(
+          `Moving FFprobe:\n   From: ${ffprobeSrc}\n   To:   ${ffprobeDest}`
+        );
+        moveBinary(ffprobeSrc, ffprobeDest);
+        if (process.platform !== 'win32') fs.chmodSync(ffprobeDest, 0o755);
+      }
     }
 
     console.log('\n✅ Success! Binaries are ready and consolidated.');
