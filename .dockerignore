@@ -1,0 +1,8 @@
+node_modules
+release
+dist
+.git
+.github
+python-portable
+temp-build-config.json
+*.log
