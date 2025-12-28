@@ -23,6 +23,7 @@
     "build:linux:flatpak": "node helpers/builder.js --linux --target=flatpak",
     "build:linux:snap": "node helpers/builder.js --linux --target=snap",
     "build:linux:docker": "./docker-build.sh --target=AppImage,deb,rpm,flatpak,tar.gz",
+    "build:linux:ci": "node helpers/builder.js --linux --target=all",
     "postinstall": "npm run rebuild && npm run files:join && npm run vendor:init",
     "test": "jest"
   },
