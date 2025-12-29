@@ -7,7 +7,7 @@
 ViveStream Revived is an Electron-based application that follows a standard multi-process architecture:
 
 1. **Main Process (Node.js)**: Controls the application lifecycle, manages the database, performs file operations, and spawns child processes for heavy lifting (downloads, conversions).
-2. **Renderer Process (React/Vite)**: Handles the user interface. It is sandboxed and communicates with the Main Process strictly via the `ContextBridge`.
+2. **Renderer Process (Plain JavaScript)**: Handles the user interface. It is sandboxed and communicates with the Main Process strictly via the `ContextBridge`.
 3. **Child Processes**: External binaries (Python/yt-dlp, FFmpeg) managed by the Main Process.
 
 ## Directory Structure
@@ -21,7 +21,7 @@ ViveStream Revived is an Electron-based application that follows a standard mult
 ├── src/
 │   ├── main/           # Main Process code (Node.js)
 │   ├── preload/        # Preload script (Context Bridge)
-│   └── renderer/       # Frontend code (React + Vite)
+│   └── renderer/       # Frontend code (HTML, CSS, JS)
 └── vendor/             # Platform-specific binaries (managed via Git LFS)
 ```
 
@@ -59,11 +59,11 @@ contextBridge.exposeInMainWorld('api', {
 
 ### 3. Renderer (`src/renderer/`)
 
-A standard React SPA (Single Page Application) bundled with Vite.
+The frontend is built with vanilla HTML, CSS, and JavaScript. It does not use any modern frameworks like React or Vue.
 
-- **State Management**: Uses a custom `state.js` (lightweight store) or React Context.
-- **Routing**: Likely client-side routing or simple conditional rendering.
-- **Styling**: CSS/SCSS.
+- **State Management**: Uses a custom `state.js` (lightweight store).
+- **Routing**: Simple conditional rendering based on user actions.
+- **Styling**: Plain CSS.
 
 ## Data Flow: The Download Lifecycle
 
