@@ -418,8 +418,7 @@ async function runBuild() {
       '!**/helpers/**',
     ],
     extraResources: extraResources,
-    // FIX: Use 'normal' compression to avoid OOM in Docker
-    compression: debug ? 'store' : 'normal',
+    compression: 'store',
     asar: true,
     win: {
       target:
@@ -455,7 +454,6 @@ async function runBuild() {
     deb: {
       compression: 'gz',
     },
-    // FIX for RPM Build Code 9: Safe naming and lower compression
     rpm: {
       fpm: [
         '--rpm-rpmbuild-define',
