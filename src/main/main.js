@@ -109,7 +109,7 @@ if (!fs.existsSync(settingsPath)) saveSettings(defaultSettings);
 
 function startFfmpegResolution() {
   const resolveTask = new Promise(async (resolve) => {
-    const { pythonPath, binDir } = getPythonDetails();
+    const { binDir } = getPythonDetails();
     console.log(`[FFmpeg] Resolution start. Python Bin: ${binDir}`);
 
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
@@ -121,86 +121,12 @@ function startFfmpegResolution() {
         if (process.platform !== 'win32') {
           try {
             fs.chmodSync(candidate, 0o755);
-          } catch (e) {}
+          } catch (e) {
+            console.error(`[FFmpeg] Failed to chmod: ${e.message}`);
+          }
         }
         resolvedFfmpegPath = candidate;
         resolve(candidate);
-        return;
-      }
-    }
-
-    try {
-      const script =
-        'import static_ffmpeg.run; print(static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()[0])';
-      let output = '';
-      await new Promise((r) => {
-        const p = spawnPython(['-c', script]);
-        p.stdout.on('data', (d) => (output += d));
-        p.on('close', r);
-        p.on('error', r);
-      });
-      const p = output.trim();
-      if (p && fs.existsSync(p)) {
-        console.log('[FFmpeg] Found via module:', p);
-        if (process.platform !== 'win32')
-          try {
-            fs.chmodSync(p, 0o755);
-          } catch (e) {}
-        resolvedFfmpegPath = p;
-        resolve(p);
-        return;
-      }
-    } catch (e) {}
-
-    const searchRoot = path.dirname(path.dirname(binDir));
-
-    const findFfmpegDeep = (dir, depth = 0) => {
-      if (depth > 6) return null;
-      try {
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-          const fp = path.join(dir, file);
-          let stat;
-          try {
-            stat = fs.statSync(fp);
-          } catch (e) {
-            continue;
-          }
-
-          if (stat.isDirectory()) {
-            if (
-              ![
-                '__pycache__',
-                'doc',
-                'test',
-                'tests',
-                'tcl',
-                'share',
-                'include',
-                'libs',
-              ].includes(file)
-            ) {
-              const res = findFfmpegDeep(fp, depth + 1);
-              if (res) return res;
-            }
-          } else if (file.toLowerCase() === targetName) {
-            return fp;
-          }
-        }
-      } catch (e) {}
-      return null;
-    };
-
-    if (fs.existsSync(searchRoot)) {
-      const found = findFfmpegDeep(searchRoot);
-      if (found) {
-        console.log('[FFmpeg] Found via deep scan:', found);
-        if (process.platform !== 'win32')
-          try {
-            fs.chmodSync(found, 0o755);
-          } catch (e) {}
-        resolvedFfmpegPath = found;
-        resolve(found);
         return;
       }
     }
@@ -279,7 +205,8 @@ function getFileFromArgs(argv) {
 }
 
 function sanitizeFilename(filename) {
-  return filename.replace(/[\\/:"*?<>|]/g, '_');
+  // eslint-disable-next-line no-control-regex
+  return filename.replace(/[\\/:"*?<>|]/g, '_').replace(/[\x00-\x1F]/g, '_');
 }
 
 const downloader = new Downloader({
@@ -433,7 +360,9 @@ ipcMain.handle('delete-video', async (e, id) => {
       try {
         const p = url.fileURLToPath(uri);
         if (fs.existsSync(p)) fs.unlinkSync(p);
-      } catch (e) {}
+      } catch (e) {
+        console.error(`Failed to delete associated file: ${p}`, e);
+      }
     }
   });
   return await db.deleteVideo(id);
@@ -662,7 +591,9 @@ ipcMain.handle('media:export-all', async () => {
           totalFiles: lib.length,
           progress: 100,
         });
-    } catch (e) {}
+    } catch (e) {
+      console.error(`Failed to export file: ${v.filePath}`, e);
+    }
   }
   return { success: true, count: c };
 });
