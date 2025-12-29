@@ -28,7 +28,7 @@ jobs:
           - target: 'flatpak'
             ext: 'flatpak'
           - target: 'tar.gz,tar.xz'
-            ext: 'tar.gz' # Will capture both if we use wildcard or separate them
+            ext: 'tar.gz'
 
     steps:
       - name: Checkout Source Code
