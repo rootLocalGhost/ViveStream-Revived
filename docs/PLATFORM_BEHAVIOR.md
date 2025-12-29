@@ -32,9 +32,9 @@ _Note: We could build a `.pkg` installer (Wizard style), but on macOS, this is c
   - **Data Removal:** While Linux packages support `postrm` (post-remove) scripts, these scripts run as **root** in a non-interactive terminal environment. We cannot launch a GUI popup asking "Do you want to delete data?" from a background root process. It is also against Linux conventions to touch the user's `/home/` directory during a system-level package removal.
 - **Solution:** Like macOS, Linux users should use the in-app **Settings > Danger Zone** options to clean up before uninstalling.
 
-## Summary
+## 📊 Summary
 
-| Feature                 | Windows              | macOS                  | Linux                            |
+| Feature                 | 🪟 Windows              | 🍎 macOS                  | 🐧 Linux                            |
 | :---------------------- | :------------------- | :--------------------- | :------------------------------- |
 | **Install Method**      | Wizard (Next > Next) | Drag & Drop            | Package Manager / Portable       |
 | **Custom Install Path** | ✅ Yes               | ✅ Yes (Drag anywhere) | ❌ No (System standard paths)    |
