@@ -185,6 +185,10 @@ npm run build:linux:docker
 
 ---
 
+## ⚠️ Issues and Fixes
+
+- Check out [BUILD_PREPERATION](./docs/BUILD_PREPERATION.md) for build related issues.
+
 ## 🤝 Contributing
 
 Contributions are welcome! If you have an idea for a new feature or have found a bug, please feel free to fork the repository, make your changes, and open a Pull Request.
