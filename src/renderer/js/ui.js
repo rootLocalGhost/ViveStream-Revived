@@ -153,7 +153,7 @@ export function createGridItem(item, isPlaylistItem = false) {
   return element;
 }
 
-function sortLibrary(library, sortKey) {
+export function sortLibrary(library, sortKey) {
   const [key, direction] = sortKey.split('-');
   return [...library].sort((a, b) => {
     let valA = a[key];
