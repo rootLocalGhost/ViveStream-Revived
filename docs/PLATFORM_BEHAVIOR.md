@@ -34,7 +34,7 @@ _Note: We could build a `.pkg` installer (Wizard style), but on macOS, this is c
 
 ## 📊 Summary
 
-| Feature                 | 🪟 Windows              | 🍎 macOS                  | 🐧 Linux                            |
+| Feature                 | 🪟 Windows           | 🍎 macOS               | 🐧 Linux                         |
 | :---------------------- | :------------------- | :--------------------- | :------------------------------- |
 | **Install Method**      | Wizard (Next > Next) | Drag & Drop            | Package Manager / Portable       |
 | **Custom Install Path** | ✅ Yes               | ✅ Yes (Drag anywhere) | ❌ No (System standard paths)    |

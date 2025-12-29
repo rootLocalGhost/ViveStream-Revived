@@ -13,22 +13,17 @@
     "env:clean": "node helpers/cleanup.js",
     "env:update": "node helpers/update-binaries.js",
     "vendor:init": "node helpers/vendor-init.js",
-
     "build": "node helpers/builder.js",
     "build:win": "node helpers/builder.js --win --target=msi",
     "build:linux": "node helpers/linux-manager.js",
-
     "build:linux:ci": "node helpers/builder.js --linux --target=all",
     "build:linux:all": "node helpers/builder.js --linux --target=all",
-
     "build:linux:rpm": "node helpers/builder.js --linux --target=rpm",
     "build:linux:flatpak": "node helpers/builder.js --linux --target=flatpak",
-
     "build:linux:deb": "node helpers/builder.js --linux --target=deb",
     "build:linux:appimage": "node helpers/builder.js --linux --target=AppImage",
     "build:linux:snap": "node helpers/builder.js --linux --target=snap",
     "build:linux:source": "node helpers/builder.js --linux --target=tar.gz",
-
     "build:linux:docker:rpm": "./docker-build.sh --target=rpm",
     "build:linux:docker:flatpak": "./docker-build.sh --target=flatpak",
     "build:linux:docker": "./docker-build.sh --target=rpm,flatpak",

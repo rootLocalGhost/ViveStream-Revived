@@ -11,24 +11,24 @@ We do not use the standard `electron-builder` CLI directly. Instead, we run `nod
 ### Workflow
 
 1.  **Preparation**:
-    -   **Join Split Files**: Runs `helpers/large-file-manager.js` to reassemble any large binaries split to bypass GitHub file size limits.
-    -   **Cleanup**: Runs `helpers/cleanup.js` to remove temp files from previous builds.
+    - **Join Split Files**: Runs `helpers/large-file-manager.js` to reassemble any large binaries split to bypass GitHub file size limits.
+    - **Cleanup**: Runs `helpers/cleanup.js` to remove temp files from previous builds.
 2.  **Configuration**:
-    -   Detects the OS or target flag (`--win`, `--linux`, `--mac`).
-    -   Selects the appropriate Python environment from `python-portable/`.
-    -   Selects the appropriate `vendor/<platform>` binaries.
+    - Detects the OS or target flag (`--win`, `--linux`, `--mac`).
+    - Selects the appropriate Python environment from `python-portable/`.
+    - Selects the appropriate `vendor/<platform>` binaries.
 3.  **Dependency Injection**:
-    -   Copies the **platform-specific** Python folder into the build artifacts.
-    -   Ensures binaries in `vendor/` have executable permissions (`chmod 755`).
+    - Copies the **platform-specific** Python folder into the build artifacts.
+    - Ensures binaries in `vendor/` have executable permissions (`chmod 755`).
 4.  **Building**:
-    -   Generates a temporary `temp-build-config.json` for `electron-builder`.
-    -   Executes `electron-builder` with this dynamic config.
-    -   **Linux**: Builds AppImage, Deb, RPM, Snap (if requested).
-    -   **Windows**: Builds NSIS Installer (setup.exe).
-    -   **macOS**: Builds DMG.
+    - Generates a temporary `temp-build-config.json` for `electron-builder`.
+    - Executes `electron-builder` with this dynamic config.
+    - **Linux**: Builds AppImage, Deb, RPM, Snap (if requested).
+    - **Windows**: Builds NSIS Installer (setup.exe).
+    - **macOS**: Builds DMG.
 5.  **Cleanup**:
-    -   Moves final artifacts to `release/<platform>/`.
-    -   Deletes temporary build folders.
+    - Moves final artifacts to `release/<platform>/`.
+    - Deletes temporary build folders.
 
 ## 📦 Vendor Binaries (The "Vendor" Folder)
 
@@ -58,8 +58,8 @@ python-portable/
 
 For Windows builds, we embed a "Portable Python" distribution (`python-portable/python-win-x64`). This is because Windows does not come with Python installed by default, and `yt-dlp` (even the binary version) often benefits from or requires a python environment for certain extractors.
 
--   **Source**: [https://github.com/Md-Siam-Mia-Main/python-portable](https://github.com/Md-Siam-Mia-Main/python-portable)
--   The build script copies this entire folder into the app's resources, allowing us to spawn it via relative paths.
+- **Source**: [https://github.com/Md-Siam-Mia-Main/python-portable](https://github.com/Md-Siam-Mia-Main/python-portable)
+- The build script copies this entire folder into the app's resources, allowing us to spawn it via relative paths.
 
 ## 🚀 CI/CD Pipeline
 

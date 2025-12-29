@@ -124,7 +124,11 @@ describe('Downloader', () => {
     );
 
     // Mock fs.promises for post-process
-    fs.promises.readdir.mockResolvedValue(['123.info.json', '123.mp4', '123.jpg']);
+    fs.promises.readdir.mockResolvedValue([
+      '123.info.json',
+      '123.mp4',
+      '123.jpg',
+    ]);
     fs.promises.readFile.mockResolvedValue(
       JSON.stringify({
         id: '123',
@@ -149,7 +153,7 @@ describe('Downloader', () => {
   });
 
   test('should handle download errors', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     const job = {
       videoInfo: {
@@ -244,14 +248,14 @@ describe('Downloader', () => {
 
     // Create a fresh instance
     downloader = new Downloader({
-        getSettings: mockGetSettings,
-        videoPath: '/mock/video/path',
-        coverPath: '/mock/cover/path',
-        subtitlePath: '/mock/subtitle/path',
-        db: mockDb,
-        BrowserDiscovery: mockBrowserDiscovery,
-        win: mockWin,
-        resolveFfmpegPath: async () => '/mock/ffmpeg',
+      getSettings: mockGetSettings,
+      videoPath: '/mock/video/path',
+      coverPath: '/mock/cover/path',
+      subtitlePath: '/mock/subtitle/path',
+      db: mockDb,
+      BrowserDiscovery: mockBrowserDiscovery,
+      win: mockWin,
+      resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
 
     // We must ensure that the fresh instance uses the same global fs.promises mock, which it does.
@@ -321,7 +325,9 @@ describe('Downloader Concurrency', () => {
     expect(downloader.activeDownloads.size).toBe(2);
 
     fs.promises.readdir.mockResolvedValue(['1.info.json', '1.mp4']);
-    fs.promises.readFile.mockResolvedValue(JSON.stringify({ id: '1', title: 'V1' }));
+    fs.promises.readFile.mockResolvedValue(
+      JSON.stringify({ id: '1', title: 'V1' })
+    );
     fs.promises.unlink.mockResolvedValue();
 
     const p1 = downloader.activeDownloads.get('1');

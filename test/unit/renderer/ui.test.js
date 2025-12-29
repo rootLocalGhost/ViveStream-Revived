@@ -216,7 +216,9 @@ describe('UI Logic - updateSearchPlaceholder', () => {
     updateSearchPlaceholder('home');
     expect(searchContainer.classList.contains('hidden')).toBe(false);
     expect(searchInput.disabled).toBe(false);
-    expect(searchInput.placeholder).toBe('Search videos, artists, playlists...');
+    expect(searchInput.placeholder).toBe(
+      'Search videos, artists, playlists...'
+    );
   });
 
   it('should hide and disable search for settings page', () => {
@@ -257,17 +259,15 @@ describe('UI Logic - createGridItem', () => {
       'Test Creator'
     );
     expect(item.querySelector('.thumbnail-duration').textContent).toBe('300s');
-    expect(
-      item.querySelector('.thumbnail-overlay-icon').innerHTML
-    ).toBe('');
+    expect(item.querySelector('.thumbnail-overlay-icon').innerHTML).toBe('');
   });
 
   it('should create an audio item with an icon', () => {
     const audioItem = { ...mockVideo, type: 'audio' };
     const item = createGridItem(audioItem);
-    expect(
-      item.querySelector('.thumbnail-overlay-icon').innerHTML
-    ).toContain('music_note');
+    expect(item.querySelector('.thumbnail-overlay-icon').innerHTML).toContain(
+      'music_note'
+    );
   });
 
   it('should mark a favorite item correctly', () => {

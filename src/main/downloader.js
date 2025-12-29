@@ -381,7 +381,8 @@ class Downloader {
       const descFile = files.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.description')
       );
-      if (descFile) await fs.promises.unlink(path.join(this.videoPath, descFile));
+      if (descFile)
+        await fs.promises.unlink(path.join(this.videoPath, descFile));
 
       const artistString = info.artist || info.creator || info.uploader;
       const artistNames = parseArtistNames(artistString);

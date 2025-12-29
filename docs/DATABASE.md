@@ -6,9 +6,9 @@ The application uses **SQLite** for data persistence, managed by **Knex.js** as 
 
 ## ⚙️ Configuration
 
--   **File**: `src/main/database.js`
--   **Location**: `AppData/ViveStream/ViveStream.db` (Platform dependent `userData` path).
--   **Mode**: `WAL` (Write-Ahead Logging) enabled for performance.
+- **File**: `src/main/database.js`
+- **Location**: `AppData/ViveStream/ViveStream.db` (Platform dependent `userData` path).
+- **Mode**: `WAL` (Write-Ahead Logging) enabled for performance.
 
 ## 📝 Schema
 
@@ -96,12 +96,12 @@ The application performs **Auto-Migration** on startup inside the `initialize()`
 1.  Checks if tables exist (`hasTable`).
 2.  If not, creates them.
 3.  Checks if specific columns exist (`hasColumn`) to support upgrades from older versions.
-    -   _Example_: When `subtitlePath` was added, a check ensures existing databases get the new column without data loss.
+    - _Example_: When `subtitlePath` was added, a check ensures existing databases get the new column without data loss.
 
 ## ⚡ Performance Optimizations
 
--   **Indices**: Added on high-traffic columns (`type`, `isFavorite`, `downloadedAt`, `name`) to speed up filtering and sorting.
--   **Pragmas**:
-    -   `journal_mode = WAL`: Allows concurrent reads while writing.
-    -   `synchronous = NORMAL`: Reduces file system sync overhead.
-    -   `cache_size = -64000`: Allocates ~64MB RAM for caching.
+- **Indices**: Added on high-traffic columns (`type`, `isFavorite`, `downloadedAt`, `name`) to speed up filtering and sorting.
+- **Pragmas**:
+  - `journal_mode = WAL`: Allows concurrent reads while writing.
+  - `synchronous = NORMAL`: Reduces file system sync overhead.
+  - `cache_size = -64000`: Allocates ~64MB RAM for caching.

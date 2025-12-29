@@ -10,22 +10,22 @@ The `helpers/large-file-manager.js` script is responsible for splitting and join
 
 ### How it Works
 
--   **Splitting:** The script scans the `python-portable/` directory for files larger than 90MB. When it finds one, it splits the file into 90MB chunks. The original file is then deleted. The chunks are named with a `.chunk` extension and a part number (e.g., `python.exe.chunk001`).
--   **Joining:** The script can also join the chunks back together to restore the original file. This is done automatically after a fresh clone or can be run manually.
+- **Splitting:** The script scans the `python-portable/` directory for files larger than 90MB. When it finds one, it splits the file into 90MB chunks. The original file is then deleted. The chunks are named with a `.chunk` extension and a part number (e.g., `python.exe.chunk001`).
+- **Joining:** The script can also join the chunks back together to restore the original file. This is done automatically after a fresh clone or can be run manually.
 
 ### Usage
 
 The script is typically run via `npm` scripts defined in `package.json`.
 
--   **`npm run files:split`**:
-    -   This command will execute the `split` action.
-    -   You should run this command if you have updated the `python-portable` environment and it has introduced new large files.
-    -   After running, you can commit the newly created chunk files.
+- **`npm run files:split`**:
+  - This command will execute the `split` action.
+  - You should run this command if you have updated the `python-portable` environment and it has introduced new large files.
+  - After running, you can commit the newly created chunk files.
 
--   **`npm run files:join`**:
-    -   This command will execute the `join` action.
-    -   This is automatically run as part of the `postinstall` script, so you usually don't need to run it manually.
-    -   If you have pulled changes that include new chunk files, you can run this command to reassemble the large files.
+- **`npm run files:join`**:
+  - This command will execute the `join` action.
+  - This is automatically run as part of the `postinstall` script, so you usually don't need to run it manually.
+  - If you have pulled changes that include new chunk files, you can run this command to reassemble the large files.
 
 ## Developer Workflow
 
@@ -37,6 +37,6 @@ If you need to update the `python-portable` dependency, follow these steps:
 
 When other developers pull your changes, the `postinstall` script will automatically run `npm run files:join` to reassemble the files.
 
-##  Cloning the `python-portable` repository
+## Cloning the `python-portable` repository
 
 The `large-file-manager.js` script will automatically clone the `python-portable` repository if it doesn't exist. This happens when you run `npm install` in a fresh clone of this project.
