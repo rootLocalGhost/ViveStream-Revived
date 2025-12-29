@@ -127,7 +127,7 @@ if (!fs.existsSync(TARGET_DIR)) {
 
   try {
     execSync(
-      'git clone https://github.com/Md-Siam-Mia-Main/python-portable.git',
+      'git clone https://github.com/Md-Siam-Mia-Main/python-portable.git --depth 1',
       {
         cwd: path.dirname(TARGET_DIR),
         stdio: 'inherit',
