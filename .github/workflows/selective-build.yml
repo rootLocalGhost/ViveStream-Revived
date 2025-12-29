@@ -1,0 +1,147 @@
+name: Manual Selective Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Select Build Target'
+        required: true
+        default: 'exe'
+        type: choice
+        options:
+          - exe
+          - msi
+          - deb
+          - rpm
+          - appimage
+          - snap
+          - flatpak
+          - source
+      clean_cache:
+        description: 'Clean NPM cache'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build_win:
+    name: Build Windows (${{ inputs.target }})
+    runs-on: windows-latest
+    if: ${{ inputs.target == 'exe' || inputs.target == 'msi' }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Checkout Portable Python
+        uses: actions/checkout@v4
+        with:
+          repository: Md-Siam-Mia-Main/python-portable
+          path: python-portable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Reassemble Large Files
+        run: npm run files:join
+      - name: Clean NPM Cache
+        if: ${{ inputs.clean_cache }}
+        run: npm cache clean --force
+      - name: Install NPM Dependencies
+        run: npm ci
+      - name: Hydrate Python Environment
+        run: npm run env:update
+      - name: Verify Windows Assets
+        shell: powershell
+        run: |
+          if (-not (Test-Path "build/installer.nsh")) {
+            Write-Error "build/installer.nsh NOT FOUND."
+            exit 1
+          }
+
+      - name: Build ${{ inputs.target }}
+        shell: bash
+        run: |
+          TARGET_FORMAT="${{ inputs.target }}"
+          if [ "$TARGET_FORMAT" == "exe" ]; then TARGET_FORMAT="nsis"; fi
+
+          echo "Building for target: $TARGET_FORMAT"
+          node helpers/builder.js --win --target=$TARGET_FORMAT --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-${{ inputs.target }}
+          path: release/win
+          retention-days: 2
+
+  build_linux:
+    name: Build Linux (${{ inputs.target }})
+    runs-on: ubuntu-24.04
+    if: ${{ contains(fromJson('["deb", "rpm", "appimage", "snap", "flatpak"]'), inputs.target) }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Checkout Portable Python
+        uses: actions/checkout@v4
+        with:
+          repository: Md-Siam-Mia-Main/python-portable
+          path: python-portable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Reassemble Large Files
+        run: npm run files:join
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
+          sudo snap install snapcraft --classic
+      - name: Clean NPM Cache
+        if: ${{ inputs.clean_cache }}
+        run: npm cache clean --force
+      - name: Install NPM Dependencies
+        run: npm ci
+      - name: Hydrate Python Environment
+        run: npm run env:update
+
+      - name: Build ${{ inputs.target }}
+        shell: bash
+        run: npm run build:linux:ci -- --linux ${{ inputs.target }} -c.publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-${{ inputs.target }}
+          path: release/linux
+          retention-days: 2
+
+  pack_source:
+    name: Pack Source Code
+    runs-on: ubuntu-latest
+    if: ${{ inputs.target == 'source' }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Get Version
+        id: version
+        run: echo "val=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Create Zip
+        run: |
+          mkdir -p release
+          zip -r release/ViveStream-Source-v${{ steps.version.outputs.val }}.zip . \
+            -x "node_modules/*" "python-portable/*" ".git/*" "release/*" "*.log" "helpers/large-file-manager.js"
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Source-Code
+          path: release/*.zip
+          retention-days: 2
