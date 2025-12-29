@@ -1,0 +1,134 @@
+name: Test Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      clean_cache:
+        description: 'Clean NPM cache'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build_linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+    outputs:
+      artifact_path: ${{ steps.get_artifact_path.outputs.path }}
+      version: ${{ steps.version_check.outputs.val }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Checkout Portable Python
+        uses: actions/checkout@v4
+        with:
+          repository: Md-Siam-Mia-Main/python-portable
+          path: python-portable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Reassemble Large Files
+        run: npm run files:join
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
+          sudo snap install snapcraft --classic
+      - name: Clean NPM Cache (Optional)
+        if: ${{ inputs.clean_cache }}
+        run: npm cache clean --force
+      - name: Configure NPM Retries
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+      - name: Install NPM Dependencies
+        run: npm ci
+      - name: Hydrate Python Environment
+        run: npm run env:update
+      - name: Verify Version
+        shell: bash
+        id: version_check
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "val=$PKG_VERSION" >> $GITHUB_OUTPUT
+      - name: Build Application
+        shell: bash
+        run: npm run build:linux:ci -- -c.publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Artifact Path
+        id: get_artifact_path
+        run: echo "path=release/linux" >> $GITHUB_OUTPUT
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-Manual-Builds
+          path: ${{ steps.get_artifact_path.outputs.path }}
+          retention-days: 2
+
+  build_windows:
+    name: Build Windows
+    runs-on: windows-latest
+    outputs:
+      artifact_path: ${{ steps.get_artifact_path.outputs.path }}
+      version: ${{ steps.version_check.outputs.val }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Checkout Portable Python
+        uses: actions/checkout@v4
+        with:
+          repository: Md-Siam-Mia-Main/python-portable
+          path: python-portable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Reassemble Large Files
+        run: npm run files:join
+      - name: Clean NPM Cache (Optional)
+        if: ${{ inputs.clean_cache }}
+        run: npm cache clean --force
+      - name: Configure NPM Retries
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+      - name: Install NPM Dependencies
+        run: npm ci
+      - name: Hydrate Python Environment
+        run: npm run env:update
+      - name: Verify Windows Assets
+        shell: powershell
+        run: |
+          if (-not (Test-Path "build/installer.nsh")) {
+            Write-Error "build/installer.nsh NOT FOUND. Build will fail."
+            exit 1
+          }
+      - name: Verify Version
+        shell: bash
+        id: version_check
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "val=$PKG_VERSION" >> $GITHUB_OUTPUT
+      - name: Build Application
+        shell: bash
+        run: node helpers/builder.js --win --target=nsis,msi --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Artifact Path
+        id: get_artifact_path
+        run: echo "path=release/win" >> $GITHUB_OUTPUT
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Manual-Builds
+          path: ${{ steps.get_artifact_path.outputs.path }}
+          retention-days: 2
