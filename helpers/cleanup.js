@@ -16,6 +16,7 @@ const TOP_LEVEL_DIRS_TO_REMOVE = [
   'manuals',
   'libs',
   'Tools',
+  '%cd%',
 ];
 
 const EXECUTABLES_ALLOWLIST = [
@@ -45,6 +46,7 @@ const RECURSIVE_DELETE_PATTERNS = [
   'sample',
   'samples',
   'docs',
+  '%cd%',
 ];
 
 const SITE_PACKAGES_CLEANUP_RULES = [
