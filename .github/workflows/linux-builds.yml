@@ -49,9 +49,6 @@ jobs:
           node-version: '25'
           cache: 'npm'
 
-      - name: Reassemble Large Files
-        run: npm run files:join
-
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -73,6 +70,9 @@ jobs:
 
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
 
       - name: Build Application
         shell: bash

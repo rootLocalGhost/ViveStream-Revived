@@ -41,9 +41,6 @@ jobs:
           node-version: '25'
           cache: 'npm'
 
-      - name: Reassemble Large Files
-        run: npm run files:join
-
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
@@ -59,6 +56,9 @@ jobs:
 
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
 
       - name: Verify Windows Assets
         shell: powershell

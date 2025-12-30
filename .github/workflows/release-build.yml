@@ -36,8 +36,6 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Reassemble Large Files
-        run: npm run files:join
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -51,10 +49,16 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
+      
       - name: Install NPM Dependencies
         run: npm ci
+
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
+
       - name: Verify Version
         shell: bash
         id: version_check
@@ -95,8 +99,6 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Reassemble Large Files
-        run: npm run files:join
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
@@ -105,10 +107,16 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
+      
       - name: Install NPM Dependencies
         run: npm ci
+
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
+
       - name: Verify Windows Assets
         shell: powershell
         run: |

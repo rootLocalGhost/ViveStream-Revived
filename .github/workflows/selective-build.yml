@@ -44,15 +44,19 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Reassemble Large Files
-        run: npm run files:join
       - name: Clean NPM Cache
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
+      
       - name: Install NPM Dependencies
         run: npm ci
+
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
+
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -96,8 +100,6 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Reassemble Large Files
-        run: npm run files:join
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -106,10 +108,15 @@ jobs:
       - name: Clean NPM Cache
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
+      
       - name: Install NPM Dependencies
         run: npm ci
+
       - name: Hydrate Python Environment
         run: npm run env:update
+
+      - name: Clean Environment
+        run: npm run env:clean
 
       - name: Build ${{ inputs.target }}
         shell: bash
