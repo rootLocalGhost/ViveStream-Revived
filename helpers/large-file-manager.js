@@ -1,9 +1,6 @@
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
-const rimrafPkg = require('rimraf');
-const rimraf = rimrafPkg.rimraf || rimrafPkg;
-const rimrafSync = rimrafPkg.rimrafSync || rimrafPkg.sync;
 
 const colors = {
   cyan: '\x1b[36m',
@@ -116,9 +113,6 @@ function joinFile(firstChunkPath) {
   console.log(`   ✅ Restored.`);
 }
 
-// ---------------------------------------------------------
-//  CLONE LOGIC (Ensure .git is removed)
-// ---------------------------------------------------------
 if (!fs.existsSync(TARGET_DIR)) {
   console.log(
     `${colors.yellow}Target directory not found: ${TARGET_DIR}${colors.reset}`
@@ -135,16 +129,15 @@ if (!fs.existsSync(TARGET_DIR)) {
     );
     console.log(`${colors.green}Clone successful.${colors.reset}`);
 
-    // Remove .git folder immediately to keep it clean
     const gitDir = path.join(TARGET_DIR, '.git');
     if (fs.existsSync(gitDir)) {
       console.log(`${colors.gray}Cleaning up .git directory...${colors.reset}`);
       try {
-        if (rimrafSync) rimrafSync(gitDir);
-        else rimraf.sync(gitDir);
+        fs.removeSync(gitDir);
       } catch (e) {
-        // Fallback
-        fs.rmSync(gitDir, { recursive: true, force: true });
+        console.error(
+          `${colors.red}Failed to remove .git: ${e.message}${colors.reset}`
+        );
       }
     }
   } catch (e) {
