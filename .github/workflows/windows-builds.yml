@@ -31,7 +31,7 @@ jobs:
       - name: Checkout Portable Python
         uses: actions/checkout@v4
         with:
-          repository: Md-Siam-Mia-Main/python-portable
+          repository: SudoLocalGhost/python-portable
           path: python-portable
           lfs: false
 

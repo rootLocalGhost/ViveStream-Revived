@@ -393,7 +393,7 @@ async function runBuild() {
         `${colors.red}WARNING: Portable Python not found at ${platformConfig.pythonSource}${colors.reset}`
       );
       console.warn(
-        `${colors.green}RUN: git clone https://github.com/Md-Siam-Mia-Main/python-portable.git ${colors.reset}`
+        `${colors.green}RUN: git clone https://github.com/SudoLocalGhost/python-portable.git ${colors.reset}`
       );
     }
   }

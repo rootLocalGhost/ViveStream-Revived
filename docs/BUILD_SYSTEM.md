@@ -58,7 +58,7 @@ python-portable/
 
 For Windows builds, we embed a "Portable Python" distribution (`python-portable/python-win-x64`). This is because Windows does not come with Python installed by default, and `yt-dlp` (even the binary version) often benefits from or requires a python environment for certain extractors.
 
-- **Source**: [https://github.com/Md-Siam-Mia-Main/python-portable](https://github.com/Md-Siam-Mia-Main/python-portable)
+- **Source**: [https://github.com/SudoLocalGhost/python-portable](https://github.com/SudoLocalGhost/python-portable)
 - The build script copies this entire folder into the app's resources, allowing us to spawn it via relative paths.
 
 ## 🚀 CI/CD Pipeline

@@ -127,7 +127,7 @@ if (!fs.existsSync(TARGET_DIR)) {
 
   try {
     execSync(
-      'git clone https://github.com/Md-Siam-Mia-Main/python-portable.git --depth 1',
+      'git clone https://github.com/SudoLocalGhost/python-portable.git --depth 1',
       {
         cwd: path.dirname(TARGET_DIR),
         stdio: 'inherit',
@@ -152,7 +152,7 @@ if (!fs.existsSync(TARGET_DIR)) {
       `${colors.red}Failed to clone python-portable: ${e.message}${colors.reset}`
     );
     console.warn(
-      `${colors.yellow}Please manually run: git clone https://github.com/Md-Siam-Mia-Main/python-portable.git ${colors.reset}`
+      `${colors.yellow}Please manually run: git clone https://github.com/SudoLocalGhost/python-portable.git ${colors.reset}`
     );
     process.exit(1);
   }
