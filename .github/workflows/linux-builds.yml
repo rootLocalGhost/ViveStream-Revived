@@ -52,8 +52,10 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
+          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder elfutils fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
           sudo snap install snapcraft --classic
+          
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
@@ -77,7 +79,7 @@ jobs:
       - name: Build Application
         shell: bash
         run: |
-          node helpers/builder.js --linux --target=${{ matrix.target }}
+          node helpers/builder.js --linux --target=${{ matrix.target }} -c.publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -86,6 +88,9 @@ jobs:
         with:
           name: Linux-${{ matrix.target }}
           path: |
-            release/linux/*.${{ matrix.ext }}
-            release/linux/*.tar.xz
+            release/*.${{ matrix.ext }}
+            release/*.tar.xz
+            release/*.snap
+            release/*.flatpak
+          if-no-files-found: warn
           retention-days: 5

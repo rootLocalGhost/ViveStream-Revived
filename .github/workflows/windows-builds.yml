@@ -75,9 +75,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug Output Directory
+        shell: bash
+        run: ls -R release || ls -R dist || echo "No output directories found"
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Windows-${{ matrix.target }}
-          path: release/win/*.${{ matrix.ext }}
+          path: "release/win/*.${{ matrix.ext }}" 
           retention-days: 5
