@@ -69,6 +69,7 @@ jobs:
         shell: bash
         run: |
           TARGET_FORMAT="${{ inputs.target }}"
+          # Map 'exe' input to 'nsis' target for electron-builder
           if [ "$TARGET_FORMAT" == "exe" ]; then TARGET_FORMAT="nsis"; fi
 
           echo "Building for target: $TARGET_FORMAT"
@@ -80,7 +81,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Windows-${{ inputs.target }}
-          path: release/win
+          path: |
+            release/*.exe
+            release/*.msi
           retention-days: 2
 
   build_linux:
@@ -103,8 +106,10 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
+          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder elfutils fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
           sudo snap install snapcraft --classic
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+
       - name: Clean NPM Cache
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
@@ -120,7 +125,13 @@ jobs:
 
       - name: Build ${{ inputs.target }}
         shell: bash
-        run: npm run build:linux:ci -- --linux ${{ inputs.target }} -c.publish=never
+        run: |
+          TARGET_FORMAT="${{ inputs.target }}"
+          # FIX: Correct casing for AppImage (electron-builder requires CamelCase)
+          if [ "$TARGET_FORMAT" == "appimage" ]; then TARGET_FORMAT="AppImage"; fi
+          
+          echo "Building for target: $TARGET_FORMAT"
+          npm run build:linux:ci -- --linux --target=$TARGET_FORMAT -c.publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -128,7 +139,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Linux-${{ inputs.target }}
-          path: release/linux
+          path: |
+            release/*.${{ inputs.target }}
+            release/*.AppImage
+            release/*.snap
+            release/*.deb
+            release/*.rpm
+            release/*.flatpak
+          if-no-files-found: warn
           retention-days: 2
 
   pack_source:
