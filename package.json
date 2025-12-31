@@ -15,7 +15,7 @@
     "vendor:init": "node helpers/vendor-init.js",
     "build": "node helpers/builder.js",
     "build:win": "node helpers/builder.js --win --target=msi",
-    "build:linux": "node helpers/linux-manager.js",
+    "build:linux": "node helpers/build-manager.js",
     "build:linux:ci": "node helpers/builder.js --linux --target=all",
     "build:linux:all": "node helpers/builder.js --linux --target=all",
     "build:linux:rpm": "node helpers/builder.js --linux --target=rpm",
