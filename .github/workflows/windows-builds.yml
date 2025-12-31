@@ -1,5 +1,4 @@
 name: Windows Builds
-
 on:
   workflow_dispatch:
     inputs:
@@ -8,7 +7,6 @@ on:
         required: false
         type: boolean
         default: false
-
 jobs:
   build-win:
     name: Build Windows ${{ matrix.target }}
@@ -21,45 +19,36 @@ jobs:
             ext: 'exe'
           - target: 'msi'
             ext: 'msi'
-
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
           lfs: false
-
       - name: Checkout Portable Python
         uses: actions/checkout@v4
         with:
           repository: SudoLocalGhost/python-portable
           path: python-portable
           lfs: false
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '25'
           cache: 'npm'
-
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
-
       - name: Configure NPM Retries
         run: |
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-
       - name: Install NPM Dependencies
         run: npm ci
-
       - name: Hydrate Python Environment
         run: npm run env:update
-
       - name: Clean Environment
         run: npm run env:clean
-
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -67,21 +56,15 @@ jobs:
             Write-Error "build/installer.nsh NOT FOUND. Build will fail."
             exit 1
           }
-
       - name: Build Application
         shell: bash
         run: |
           node helpers/builder.js --win --target=${{ matrix.target }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Debug Output Directory
-        shell: bash
-        run: ls -R release || ls -R dist || echo "No output directories found"
-
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Windows-${{ matrix.target }}
-          path: "release/win/*.${{ matrix.ext }}" 
+          path: 'release/*.${{ matrix.ext }}'
           retention-days: 5
