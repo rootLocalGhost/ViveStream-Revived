@@ -1,12 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-// ==========================================
-// CONFIGURATION
-// ==========================================
-
 const PORTABLE_ROOT = path.join(__dirname, '..', 'python-portable');
-
 const TOP_LEVEL_DIRS_TO_REMOVE = [
   'include',
   'share',
@@ -18,7 +12,6 @@ const TOP_LEVEL_DIRS_TO_REMOVE = [
   'Tools',
   '%cd%',
 ];
-
 const EXECUTABLES_ALLOWLIST = [
   'python',
   'python.exe',
@@ -30,13 +23,11 @@ const EXECUTABLES_ALLOWLIST = [
   'pip.exe',
   'yt-dlp',
   'yt-dlp.exe',
-  // These are crucial:
   'ffmpeg',
   'ffmpeg.exe',
   'ffprobe',
   'ffprobe.exe',
 ];
-
 const RECURSIVE_DELETE_PATTERNS = [
   '__pycache__',
   'tests',
@@ -48,17 +39,11 @@ const RECURSIVE_DELETE_PATTERNS = [
   'docs',
   '%cd%',
 ];
-
 const SITE_PACKAGES_CLEANUP_RULES = [
   { pkg: 'docutils', remove: ['languages', 'parsers'] },
   { pkg: 'urllib3', remove: ['contrib/emscripten'] },
   { pkg: 'yt_dlp', remove: ['__pyinstaller'] },
 ];
-
-// ==========================================
-// HELPERS
-// ==========================================
-
 function deleteItem(itemPath) {
   if (fs.existsSync(itemPath)) {
     try {
@@ -68,11 +53,9 @@ function deleteItem(itemPath) {
     }
   }
 }
-
 function isAllowlisted(filename) {
   const name = path.parse(filename).name;
   const base = path.basename(filename);
-  // Case insensitive check for Windows safety
   const allow = EXECUTABLES_ALLOWLIST.some(
     (a) =>
       a.toLowerCase() === base.toLowerCase() ||
@@ -80,22 +63,18 @@ function isAllowlisted(filename) {
   );
   return allow;
 }
-
 function cleanExecutablesFolder(folderPath) {
   if (folderPath.split(path.sep).includes('static_ffmpeg')) {
     return;
   }
-
   console.log(`   ⚙️  Cleaning Executables in: ${folderPath}`);
   try {
     const files = fs.readdirSync(folderPath);
     files.forEach((file) => {
       const fullPath = path.join(folderPath, file);
       const stat = fs.statSync(fullPath);
-
       if (stat.isFile()) {
         if (!isAllowlisted(file)) {
-          // console.log(`      - Removing ${file}`); // Uncomment for debug
           deleteItem(fullPath);
         }
       }
@@ -104,11 +83,8 @@ function cleanExecutablesFolder(folderPath) {
     console.warn(`   ⚠️  Could not clean executables folder: ${e.message}`);
   }
 }
-
 function cleanSitePackagesFolder(folderPath) {
   if (!fs.existsSync(folderPath)) return;
-
-  // 1. Specific Package Rules
   SITE_PACKAGES_CLEANUP_RULES.forEach((rule) => {
     const pkgPath = path.join(folderPath, rule.pkg);
     if (fs.existsSync(pkgPath)) {
@@ -117,8 +93,6 @@ function cleanSitePackagesFolder(folderPath) {
       });
     }
   });
-
-  // 2. Generic Cleanup
   const contents = fs.readdirSync(folderPath);
   contents.forEach((item) => {
     const fullPath = path.join(folderPath, item);
@@ -130,32 +104,26 @@ function cleanSitePackagesFolder(folderPath) {
     }
   });
 }
-
 function walkAndClean(currentDir) {
   if (!fs.existsSync(currentDir)) return;
-
   let items;
   try {
     items = fs.readdirSync(currentDir);
   } catch (e) {
     return;
   }
-
   items.forEach((item) => {
     const fullPath = path.join(currentDir, item);
-
     if (RECURSIVE_DELETE_PATTERNS.includes(item)) {
       deleteItem(fullPath);
       return;
     }
-
     let stat;
     try {
       stat = fs.statSync(fullPath);
     } catch (e) {
       return;
     }
-
     if (stat.isDirectory()) {
       const lowerItem = item.toLowerCase();
       if (lowerItem === 'scripts' || lowerItem === 'bin') {
@@ -168,7 +136,6 @@ function walkAndClean(currentDir) {
         walkAndClean(fullPath);
       }
     } else {
-      // File Cleanup
       if (
         item.endsWith('.pdb') ||
         item.endsWith('.whl') ||
@@ -187,21 +154,17 @@ function walkAndClean(currentDir) {
     }
   });
 }
-
 function main() {
   console.log('=========================================');
   console.log('   🧹 DEEP CLEANUP: Python Portable');
   console.log('=========================================');
-
   if (!fs.existsSync(PORTABLE_ROOT)) {
     console.error(`❌ Could not find: ${PORTABLE_ROOT}`);
     return;
   }
-
   const platforms = fs.readdirSync(PORTABLE_ROOT).filter((f) => {
     return fs.statSync(path.join(PORTABLE_ROOT, f)).isDirectory();
   });
-
   platforms.forEach((platform) => {
     const platformPath = path.join(PORTABLE_ROOT, platform);
     console.log(`\n📂 Platform: ${platform}`);
@@ -210,14 +173,11 @@ function main() {
     );
     walkAndClean(platformPath);
   });
-
   console.log(`\n✨ Cleanup Finished.`);
 }
-
 if (require.main === module) {
   main();
 }
-
 module.exports = {
   cleanExecutablesFolder,
   isAllowlisted,
