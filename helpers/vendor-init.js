@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-
 const libs = [
   {
     src: path.join(
@@ -21,17 +20,13 @@ const libs = [
     ),
   },
 ];
-
 function copyLibs() {
   console.log('📦 Vendor Init: Copying frontend libraries...');
-
   libs.forEach((lib) => {
     const destDir = path.dirname(lib.dest);
-
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
     }
-
     if (fs.existsSync(lib.src)) {
       fs.copyFileSync(lib.src, lib.dest);
       console.log(`   ✔ Copied: ${path.basename(lib.src)}`);
@@ -42,5 +37,4 @@ function copyLibs() {
     }
   });
 }
-
 copyLibs();
