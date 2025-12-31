@@ -1,5 +1,4 @@
 name: Test Build
-
 on:
   workflow_dispatch:
     inputs:
@@ -8,16 +7,14 @@ on:
         required: false
         type: boolean
         default: false
-
 permissions:
   contents: read
-
 jobs:
   build_linux:
     name: Build Linux
     runs-on: ubuntu-24.04
     outputs:
-      artifact_path: ${{ steps.get_artifact_path.outputs.path }}
+      artifact_path: release
       version: ${{ steps.version_check.outputs.val }}
     steps:
       - name: Checkout Source Code
@@ -32,14 +29,12 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder elfutils fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
           sudo snap install snapcraft --classic
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
@@ -48,16 +43,12 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-
       - name: Install NPM Dependencies
         run: npm ci
-
       - name: Hydrate Python Environment
         run: npm run env:update
-
       - name: Clean Environment
         run: npm run env:clean
-
       - name: Verify Version
         shell: bash
         id: version_check
@@ -69,30 +60,26 @@ jobs:
         run: npm run build:linux:ci -- -c.publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Get Artifact Path
         id: get_artifact_path
         run: echo "path=release" >> $GITHUB_OUTPUT
-      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Linux-Manual-Builds
           path: |
-            ${{ steps.get_artifact_path.outputs.path }}/*.AppImage
-            ${{ steps.get_artifact_path.outputs.path }}/*.snap
-            ${{ steps.get_artifact_path.outputs.path }}/*.flatpak
-            ${{ steps.get_artifact_path.outputs.path }}/*.deb
-            ${{ steps.get_artifact_path.outputs.path }}/*.rpm
-            ${{ steps.get_artifact_path.outputs.path }}/*.tar.gz
-            ${{ steps.get_artifact_path.outputs.path }}/*.tar.xz
+            release/*.AppImage
+            release/*.snap
+            release/*.flatpak
+            release/*.deb
+            release/*.rpm
+            release/*.tar.gz
           retention-days: 2
-
   build_windows:
     name: Build Windows
     runs-on: windows-latest
     outputs:
-      artifact_path: ${{ steps.get_artifact_path.outputs.path }}
+      artifact_path: release
       version: ${{ steps.version_check.outputs.val }}
     steps:
       - name: Checkout Source Code
@@ -115,16 +102,12 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-
       - name: Install NPM Dependencies
         run: npm ci
-
       - name: Hydrate Python Environment
         run: npm run env:update
-
       - name: Clean Environment
         run: npm run env:clean
-
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -143,16 +126,14 @@ jobs:
         run: node helpers/builder.js --win --target=nsis,msi --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Get Artifact Path
         id: get_artifact_path
         run: echo "path=release" >> $GITHUB_OUTPUT
-      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Manual-Builds
           path: |
-             ${{ steps.get_artifact_path.outputs.path }}/*.exe
-             ${{ steps.get_artifact_path.outputs.path }}/*.msi
+            release/*.exe
+            release/*.msi
           retention-days: 2
