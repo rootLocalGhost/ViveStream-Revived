@@ -27,24 +27,13 @@ function getPythonDetails() {
       pythonPath = path.join(winDir, 'python.exe');
       binDir = path.join(winDir, 'Scripts');
     }
-  } else if (process.platform === 'darwin') {
-    const macDir = path.join(root, 'python-mac-darwin');
-    if (fs.existsSync(path.join(macDir, 'bin', 'python3'))) {
-      pythonPath = path.join(macDir, 'bin', 'python3');
-      binDir = path.join(macDir, 'bin');
-    }
   } else {
-    // Linux
+    // Linux (GNU)
     const linuxGnu = path.join(root, 'python-linux-gnu');
-    const linuxMusl = path.join(root, 'python-linux-musl');
-    let targetDir = null;
 
-    if (fs.existsSync(linuxGnu)) targetDir = linuxGnu;
-    else if (fs.existsSync(linuxMusl)) targetDir = linuxMusl;
-
-    if (targetDir) {
-      pythonPath = path.join(targetDir, 'bin', 'python3');
-      binDir = path.join(targetDir, 'bin');
+    if (fs.existsSync(linuxGnu)) {
+      pythonPath = path.join(linuxGnu, 'bin', 'python3');
+      binDir = path.join(linuxGnu, 'bin');
     }
   }
 
