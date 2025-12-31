@@ -1,5 +1,4 @@
 name: Release Build
-
 on:
   workflow_dispatch:
     inputs:
@@ -11,11 +10,9 @@ on:
   push:
     tags:
       - 'v*'
-
 permissions:
   contents: write
   discussions: write
-
 jobs:
   build_linux:
     name: Build Linux
@@ -36,14 +33,12 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
-      
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder elfutils fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
           sudo snap install snapcraft --classic
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
@@ -52,33 +47,26 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-      
       - name: Install NPM Dependencies
         run: npm ci
-
       - name: Hydrate Python Environment
         run: npm run env:update
-
       - name: Clean Environment
         run: npm run env:clean
-
       - name: Verify Version
         shell: bash
         id: version_check
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "val=$PKG_VERSION" >> $GITHUB_OUTPUT
-      
       - name: Build Application
         shell: bash
         run: npm run build:linux:ci -- -c.publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Get Artifact Path
         id: get_artifact_path
         run: echo "path=release" >> $GITHUB_OUTPUT
-      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -90,9 +78,7 @@ jobs:
             release/*.snap
             release/*.flatpak
             release/*.tar.gz
-            release/*.tar.xz
           retention-days: 5
-
   build_windows:
     name: Build Windows
     runs-on: windows-latest
@@ -120,16 +106,12 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-      
       - name: Install NPM Dependencies
         run: npm ci
-
       - name: Hydrate Python Environment
         run: npm run env:update
-
       - name: Clean Environment
         run: npm run env:clean
-
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -148,11 +130,9 @@ jobs:
         run: node helpers/builder.js --win --target=nsis,msi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Get Artifact Path
         id: get_artifact_path
         run: echo "path=release" >> $GITHUB_OUTPUT
-      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -161,7 +141,6 @@ jobs:
             release/*.exe
             release/*.msi
           retention-days: 5
-
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -170,26 +149,21 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-
       - name: Download Linux Artifacts
         uses: actions/download-artifact@v4
         with:
           name: Linux-Builds
           path: release
-
       - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
           name: Windows-Builds
           path: release
-
       - name: Create Source Archive
         shell: bash
         run: |
-          # Zip the current directory (checked out source) into the release folder
           zip -r release/ViveStream-Source-v${{ needs.build_linux.outputs.version }}.zip . \
             -x "node_modules/*" "python-portable/*" ".git/*" "release/*" "*.log" "helpers/large-file-manager.js"
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -200,7 +174,6 @@ jobs:
             release/*.snap
             release/*.flatpak
             release/*.tar.gz
-            release/*.tar.xz
             release/*.exe
             release/*.msi
             release/ViveStream-Source-*.zip
@@ -211,22 +184,13 @@ jobs:
           name: 'ViveStream Revived v${{ needs.build_linux.outputs.version }} 🚀'
           tag_name: 'v${{ needs.build_linux.outputs.version }}'
           body: |
-            ## 🌟 ViveStream Revived - What's New?
-
-            Welcome to the latest version of **ViveStream**! This release brings performance improvements, bug fixes, and better stability.
-
-            ### 🛠️ Installation
+            Welcome to the latest version of **ViveStream**!
             - **Windows**: Download the `.exe` or `.msi` installer.
             - **Linux**: Use the `AppImage`, `.deb`, `.rpm`, `.snap`, `.flatpak` or tarballs.
-
             ---
-            ### ⚠️ Security Note (Code Signing)
-            > **Notice**: This application is not code-signed because the developer does not currently have a commercial signing certificate. 
+            > **Notice**: This application is not code-signed.
             > 
             > - **Windows**: You may see a "Microsoft Defender SmartScreen" warning. Click **"More info"** and then **"Run anyway"**.
-
-            Rest assured, the application is safe to use and the source code is provided below for transparency.
-
             ---
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
