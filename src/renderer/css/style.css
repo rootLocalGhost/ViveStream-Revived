@@ -638,7 +638,7 @@ input[type='range']:hover::-webkit-slider-thumb {
 .page {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  min-height: calc(100% - 20px);
   animation: fadeSlideUp 0.5s var(--transition-bounce);
 }
 
