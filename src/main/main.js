@@ -28,17 +28,14 @@ app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-oop-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch(
+  'disable-features',
+  'Autofill,ComponentUpdateServices'
+);
 
 app.setName('ViveStream');
 
 const isDev = !app.isPackaged;
-
-if (isDev) {
-  app.commandLine.appendSwitch(
-    'disable-features',
-    'Autofill,ComponentUpdateServices'
-  );
-}
 
 const userHomePath = app.getPath('home');
 const viveStreamPath = path.join(userHomePath, 'ViveStream');
@@ -287,6 +284,7 @@ function createTray() {
 }
 
 app.on('before-quit', async () => {
+  app.isQuitting = true;
   globalShortcut.unregisterAll();
   downloader.shutdown();
   await db.shutdown();

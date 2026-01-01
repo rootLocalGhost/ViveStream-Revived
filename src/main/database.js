@@ -5,17 +5,12 @@ const { parseArtistNames } = require('./utils');
 
 let db;
 
-/**
- * * Initialize the Database
- * Sets up SQLite connection, enables WAL mode, and runs migrations.
- * @param {Electron.App} app - Electron App instance
- * @param {string} [customPath] - Optional custom path for testing
- */
+
 function initialize(app, customPath = null) {
   const dbPath =
     customPath || path.join(app.getPath('userData'), 'ViveStream.db');
 
-  // Ensure directory exists
+
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -30,7 +25,7 @@ function initialize(app, customPath = null) {
     pool: {
       min: 1,
       max: 1,
-      // ! SQLite handles concurrency via file locks, large pools are wasteful here.
+
       afterCreate: (conn, cb) => {
         conn.run('PRAGMA foreign_keys = ON;', cb);
       },
@@ -39,36 +34,36 @@ function initialize(app, customPath = null) {
 
   return (async () => {
     try {
-      // * ----------------------------
-      // * TABLE CREATION & MIGRATIONS
-      // * ----------------------------
+
+
+
 
       if (!(await db.schema.hasTable('videos'))) {
         await db.schema.createTable('videos', (table) => {
-          table.string('id').primary(); // YouTube ID
+          table.string('id').primary();
           table.string('title').notNullable();
-          table.string('uploader'); // Channel Name
-          table.string('creator'); // Parsed Artist Name
+          table.string('uploader');
+          table.string('creator');
           table.text('description');
-          table.integer('duration'); // Seconds
+          table.integer('duration');
           table.string('upload_date');
           table.string('originalUrl');
           table.string('filePath').unique();
           table.string('coverPath');
           table.string('subtitlePath');
           table.boolean('hasEmbeddedSubs').defaultTo(false);
-          table.string('type').defaultTo('video'); // 'video' | 'audio'
+          table.string('type').defaultTo('video');
           table.timestamp('downloadedAt').defaultTo(db.fn.now());
           table.boolean('isFavorite').defaultTo(false);
           table.string('source').defaultTo('youtube');
 
-          // ! Indices for performance
+
           table.index('type');
           table.index('isFavorite');
           table.index('downloadedAt');
         });
       } else {
-        // ? Migration for existing users: Ensure indices exist
+
         try {
           await db.schema.alterTable('videos', (t) => t.index('type'));
         } catch (e) {}
@@ -160,9 +155,9 @@ function initialize(app, customPath = null) {
         });
       }
 
-      // * ----------------
-      // * COLUMN MIGRATIONS
-      // * ----------------
+
+
+
       if (!(await db.schema.hasColumn('playlists', 'coverPath'))) {
         await db.schema.alterTable('playlists', (table) => {
           table.string('coverPath');
@@ -185,12 +180,12 @@ function initialize(app, customPath = null) {
         });
       }
 
-      // * ----------------
-      // * PRAGMA TUNING
-      // * ----------------
-      await db.raw('PRAGMA journal_mode = WAL;'); // ! Faster concurrency
-      await db.raw('PRAGMA synchronous = NORMAL;'); // ! Less aggressive fsync
-      await db.raw('PRAGMA cache_size = -64000;'); // ! 64MB Cache
+
+
+
+      await db.raw('PRAGMA journal_mode = WAL;');
+      await db.raw('PRAGMA synchronous = NORMAL;');
+      await db.raw('PRAGMA cache_size = -64000;');
     } catch (error) {
       console.error('Database initialization failed:', error);
       if (app && typeof app.quit === 'function') {
@@ -202,7 +197,7 @@ function initialize(app, customPath = null) {
           );
         app.quit();
       } else {
-        throw error; // Re-throw for tests
+        throw error;
       }
     }
   })();
@@ -212,13 +207,13 @@ function getDB() {
   return db;
 }
 
-// * ----------------------
-// * VIDEO OPERATIONS
-// * ----------------------
+
+
+
 
 async function getLibrary() {
   try {
-    // ! Optimize: Exclude heavy 'description' field for initial load
+
     return await db('videos')
       .select(
         'id',
@@ -247,11 +242,11 @@ async function getLibrary() {
 async function addOrUpdateVideo(videoData) {
   try {
     const { artist, ...videoInfo } = videoData;
-    // ! SQLite 'ON CONFLICT' equivalent
+
     await db('videos').insert(videoInfo).onConflict('id').merge();
   } catch (error) {
     console.error('Error saving video to DB:', error);
-    throw error; // Rethrow for tests
+    throw error;
   }
 }
 
@@ -296,10 +291,10 @@ async function deleteVideo(id) {
       .select('artistId');
     const artistIds = artistLinks.map((link) => link.artistId);
 
-    // * Cascade delete will handle relationships, but we handle file cleanup manually if needed
+
     await db('videos').where({ id }).del();
 
-    // * Cleanup artists that no longer have any videos
+
     if (artistIds.length > 0) {
       for (const artistId of artistIds) {
         const remaining = await db('video_artists')
@@ -341,7 +336,7 @@ async function toggleFavorite(id) {
 
 async function clearAllMedia() {
   try {
-    // ! DANGER: Nukes everything
+
     await db('video_artists').del();
     await db('artists').del();
     await db('playlist_videos').del();
@@ -354,9 +349,9 @@ async function clearAllMedia() {
   }
 }
 
-// * ----------------------
-// * PLAYLIST OPERATIONS
-// * ----------------------
+
+
+
 
 async function createPlaylist(name) {
   try {
@@ -382,7 +377,7 @@ async function findOrCreatePlaylistByName(name) {
 
 async function getAllPlaylistsWithStats() {
   try {
-    // ! Complex query: Gets playlist + cover of first video + count of videos
+
     const playlists = await db.raw(`
       SELECT
         p.*,
@@ -498,9 +493,9 @@ async function getPlaylistsForVideo(videoId) {
   }
 }
 
-// * ----------------------
-// * ARTIST OPERATIONS
-// * ----------------------
+
+
+
 
 async function findOrCreateArtist(name, thumbnailPath) {
   try {
@@ -620,7 +615,7 @@ async function cleanupOrphanArtists() {
 
 async function regenerateArtists() {
   try {
-    // ! Heavy operation: Iterates ALL videos
+
     const videos = await db('videos').select('id', 'creator', 'coverPath');
     let count = 0;
     for (const video of videos) {
@@ -644,9 +639,9 @@ async function regenerateArtists() {
   }
 }
 
-// * ----------------------
-// * HISTORY OPERATIONS
-// * ----------------------
+
+
+
 
 async function addToHistory(item) {
   try {

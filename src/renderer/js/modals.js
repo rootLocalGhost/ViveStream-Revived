@@ -1,4 +1,4 @@
-// src/js/modals.js
+
 const confirmationModal = document.getElementById('confirmation-modal');
 const confirmModalTitle = document.getElementById('modal-title');
 const confirmModalText = document.getElementById('modal-text');
@@ -13,12 +13,7 @@ const promptModalInput = document.getElementById('prompt-input');
 const promptModalConfirmBtn = document.getElementById('prompt-confirm-btn');
 const promptModalCancelBtn = document.getElementById('prompt-cancel-btn');
 
-/**
- * Shows a confirmation dialog.
- * @param {string} title - The title of the modal.
- * @param {string} text - The descriptive text of the modal.
- * @param {Function} confirmAction - The function to call when the user confirms.
- */
+
 export function showConfirmationModal(title, text, confirmAction) {
   confirmModalTitle.textContent = title;
   confirmModalText.innerHTML = text;
@@ -37,13 +32,7 @@ confirmModalConfirmBtn.addEventListener('click', () => {
   onConfirmAction = null;
 });
 
-/**
- * Shows a dialog that prompts the user for text input.
- * @param {string} title - The title of the modal.
- * @param {string} text - The descriptive text of the modal.
- * @param {string} [defaultValue=''] - The default value for the input field.
- * @returns {Promise<string|null>} A promise that resolves with the user's input, or null if cancelled.
- */
+
 export function showPromptModal(title, text, defaultValue = '') {
   return new Promise((resolve) => {
     promptModalTitle.textContent = title;
@@ -61,7 +50,7 @@ export function showPromptModal(title, text, defaultValue = '') {
 
     const cancelHandler = () => {
       promptModal.classList.add('hidden');
-      resolve(null); // Resolve with null on cancel
+      resolve(null);
       cleanup();
     };
 
