@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('download-queue-start', (e, v) => cb(v)),
   onDownloadProgress: (cb) =>
     ipcRenderer.on('download-progress', (e, v) => cb(v)),
-  // NEW: Live logs
+
   onDownloadLog: (cb) => ipcRenderer.on('download-log', (e, v) => cb(v)),
   onDownloadComplete: (cb) =>
     ipcRenderer.on('download-complete', (e, v) => cb(v)),
