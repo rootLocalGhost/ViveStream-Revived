@@ -3,24 +3,24 @@
 ---
   <p>
     <!-- Release Info -->
-    <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/releases">
-      <img src="https://img.shields.io/github/v/release/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square&label=Version&color=blueviolet" alt="Latest Release">
+    <a href="https://github.com/rootLocalGhost/ViveStream-Revived/releases">
+      <img src="https://img.shields.io/github/v/release/rootLocalGhost/ViveStream-Revived?style=flat-square&label=Version&color=blueviolet" alt="Latest Release">
     </a>
-    <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square&color=blue" alt="License">
+    <a href="https://github.com/rootLocalGhost/ViveStream-Revived/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/rootLocalGhost/ViveStream-Revived?style=flat-square&color=blue" alt="License">
     </a>
     <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-informational?style=flat-square" alt="Platform">
   </p>
   <p>
     <!-- Stats -->
-    <img src="https://img.shields.io/github/downloads/Md-Siam-Mia-Man/ViveStream-Revived/total?style=flat-square&color=success&label=Downloads" alt="Total Downloads">
-    <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/stargazers">
-      <img src="https://img.shields.io/github/stars/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square&color=yellow" alt="Stars">
+    <img src="https://img.shields.io/github/downloads/rootLocalGhost/ViveStream-Revived/total?style=flat-square&color=success&label=Downloads" alt="Total Downloads">
+    <a href="https://github.com/rootLocalGhost/ViveStream-Revived/stargazers">
+      <img src="https://img.shields.io/github/stars/rootLocalGhost/ViveStream-Revived?style=flat-square&color=yellow" alt="Stars">
     </a>
-    <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/network/members">
-      <img src="https://img.shields.io/github/forks/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square&color=orange" alt="Forks">
+    <a href="https://github.com/rootLocalGhost/ViveStream-Revived/network/members">
+      <img src="https://img.shields.io/github/forks/rootLocalGhost/ViveStream-Revived?style=flat-square&color=orange" alt="Forks">
     </a>
-    <img src="https://img.shields.io/github/last-commit/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square" alt="Last Commit">
+    <img src="https://img.shields.io/github/last-commit/rootLocalGhost/ViveStream-Revived?style=flat-square" alt="Last Commit">
   </p>
 <p>
 <!-- Tech Stack -->
@@ -78,7 +78,7 @@
 
 > **⚠️ Note:** If you are using ViveStream v7.6.0 or lower, please **uninstall** the old version before installing this one. Recent versions contain significant architectural changes. Installing on top of an old version may result in duplicate installations.
 
-1. Go to the [**Releases**](https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/releases) page.
+1. Go to the [**Releases**](https://github.com/rootLocalGhost/ViveStream-Revived/releases) page.
 2. Download the installer for your OS:
    - **🪟 Windows:** `ViveStream-Revived-Setup-x.x.x.exe` or `.msi`.
    - **🐧 Linux:** `.AppImage`, `.deb`, `.rpm`, `.snap`, or `.tar.gz`.
@@ -98,7 +98,7 @@ See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` f
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Md-Siam-Mia-Man/ViveStream-Revived.git
+   git clone https://github.com/rootLocalGhost/ViveStream-Revived.git
    cd ViveStream-Revived
    ```
 2. **Install dependencies:**
