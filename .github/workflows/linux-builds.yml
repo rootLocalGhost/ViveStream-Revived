@@ -23,8 +23,6 @@ jobs:
             ext: 'rpm'
           - target: 'snap'
             ext: 'snap'
-          - target: 'flatpak'
-            ext: 'flatpak'
           - target: 'tar.gz'
             ext: 'tar.gz'
     steps:
@@ -46,19 +44,13 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder elfutils fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
+          sudo apt-get install -y rpm libarchive-tools fakeroot dpkg-dev libsecret-1-dev libfuse2 libgl1-mesa-dev build-essential graphicsmagick
           sudo snap install snapcraft --classic
-          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
-      - name: Configure NPM Retries
-        run: |
-          npm config set fetch-retries 5
-          npm config set fetch-retry-mintimeout 20000
-          npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
-        run: npm ci
+        run: npm ci --silent
       - name: Hydrate Python Environment
         run: npm run env:update
       - name: Clean Environment
@@ -75,6 +67,5 @@ jobs:
           name: Linux-${{ matrix.target }}
           path: |
             release/*.${{ matrix.ext }}
-            release/*.flatpak
           if-no-files-found: warn
           retention-days: 5
