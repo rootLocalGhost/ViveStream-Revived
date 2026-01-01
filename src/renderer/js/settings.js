@@ -338,14 +338,14 @@ export function initializeSettingsPage() {
     .getElementById('github-view-link')
     ?.addEventListener('click', () =>
       window.electronAPI.openExternal(
-        'https://github.com/Md-Siam-Mia-Man/ViveStream-Revived'
+        'https://github.com/rootLocalGhost/ViveStream-Revived'
       )
     );
   document
     .getElementById('github-star-link')
     ?.addEventListener('click', () =>
       window.electronAPI.openExternal(
-        'https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/stargazers'
+        'https://github.com/rootLocalGhost/ViveStream-Revived/stargazers'
       )
     );
 }
