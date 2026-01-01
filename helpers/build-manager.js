@@ -1,6 +1,6 @@
 const { spawnSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const readline = require('readline');
+const os = require('os');
 const colors = {
   cyan: '\x1b[36m',
   green: '\x1b[32m',
@@ -8,78 +8,167 @@ const colors = {
   red: '\x1b[31m',
   reset: '\x1b[0m',
 };
-const DOCKER_RECOMMENDED = ['rpm', 'flatpak'];
-const HOST_RECOMMENDED = ['AppImage', 'deb', 'snap', 'tar.gz'];
-function run(command, args = [], options = {}) {
-  console.log(`${colors.cyan}> ${command} ${args.join(' ')}${colors.reset}`);
+const PLATFORM = os.platform();
+const HOST_LINUX_TARGETS = ['AppImage', 'deb', 'snap', 'tar.gz'];
+const WINDOWS_TARGETS = ['nsis', 'msi', 'source'];
+const DOCKER_LINUX_TARGETS = ['rpm'];
+const ALL_LINUX_TARGETS = ['AppImage', 'deb', 'rpm', 'snap', 'tar.gz'];
+const IS_DEBUG = process.argv.includes('--debug');
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+function ask(question) {
+  return new Promise((resolve) => {
+    rl.question(
+      `${colors.yellow}${question} [Y/n]: ${colors.reset}`,
+      (answer) => {
+        resolve(
+          answer.toLowerCase() === 'y' ||
+            answer.toLowerCase() === 'yes' ||
+            answer === ''
+        );
+      }
+    );
+  });
+}
+function runSync(command, args, options = {}) {
+  const stdioMode = IS_DEBUG ? 'inherit' : 'ignore';
+  if (IS_DEBUG)
+    console.log(`${colors.cyan}> ${command} ${args.join(' ')}${colors.reset}`);
+  else console.log(`${colors.cyan}> Running ${command}...${colors.reset}`);
   const result = spawnSync(command, args, {
-    stdio: 'inherit',
+    stdio: stdioMode,
     shell: true,
     ...options,
   });
   return result.status === 0;
 }
-function checkCommand(cmd) {
-  try {
-    const result = spawnSync('which', [cmd], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch (e) {
-    return false;
-  }
+function checkDocker() {
+  const result = spawnSync('docker', ['--version'], {
+    stdio: 'ignore',
+    shell: true,
+  });
+  return result.status === 0;
 }
-function main() {
-  console.log(
-    `${colors.green}=========================================${colors.reset}`
-  );
-  console.log(
-    `${colors.green}   🐧 ViveStream Linux Smart Builder     ${colors.reset}`
-  );
-  console.log(
-    `${colors.green}=========================================${colors.reset}`
-  );
-  const hasDocker = checkCommand('docker');
-  const dockerTargets = [];
-  const hostTargets = [];
-  DOCKER_RECOMMENDED.forEach((t) => dockerTargets.push(t));
-  HOST_RECOMMENDED.forEach((t) => hostTargets.push(t));
-  if (dockerTargets.length > 0) {
-    if (hasDocker) {
-      console.log(
-        `\n${colors.yellow}[1/2] Docker Phase: Building ${dockerTargets.join(', ')}...${colors.reset}`
-      );
-      const success = run('./docker-build.sh', [
-        `--target=${dockerTargets.join(',')}`,
-      ]);
-      if (!success) {
-        console.error(`${colors.red}❌ Docker build failed.${colors.reset}`);
+function checkDockerImage() {
+  const result = spawnSync('docker', ['images', '-q', 'vivestream-builder'], {
+    stdio: 'pipe',
+    shell: true,
+  });
+  return result.stdout.toString().trim().length > 0;
+}
+async function installDocker() {
+  if (PLATFORM === 'linux') {
+    console.log('Installing Docker via convenience script...');
+    return runSync('curl -fsSL https://get.docker.com | sh');
+  } else if (PLATFORM === 'win32') {
+    console.log('Opening Docker Desktop download page...');
+    runSync('start https://www.docker.com/products/docker-desktop');
+    console.log('Please install Docker Desktop and restart this script.');
+    process.exit(0);
+  }
+  return false;
+}
+async function runDockerBuild(targets) {
+  const hasDocker = checkDocker();
+  if (!hasDocker) {
+    console.warn(`${colors.red}❌ Docker not found.${colors.reset}`);
+    const install = await ask('Do you want to install Docker now?');
+    if (install) {
+      const installed = await installDocker();
+      if (!installed && PLATFORM === 'linux') {
+        console.error('Docker installation failed. Please install manually.');
+        return;
       }
     } else {
-      console.warn(
-        `\n${colors.yellow}⚠️  Docker not found. Skipping ${dockerTargets.join(', ')}.${colors.reset}`
-      );
-      console.warn(
-        `${colors.yellow}   (Install Docker to build RPM/Flatpak reliably)${colors.reset}`
-      );
+      console.log('Skipping Docker build.');
+      if (PLATFORM === 'win32')
+        console.log('Tip: Use Debian WSL to build Linux packages.');
+      return;
     }
   }
-  if (hostTargets.length > 0) {
-    console.log(
-      `\n${colors.yellow}[2/2] Host Phase: Building ${hostTargets.join(', ')}...${colors.reset}`
+  const hasImage = checkDockerImage();
+  if (!hasImage) {
+    const create = await ask(
+      'Docker image "vivestream-builder" not found. Build it?'
     );
-    run('npm', ['run', 'env:update']);
-    const success = run('node', [
+    if (!create) {
+      console.log('Skipping Docker build.');
+      return;
+    }
+  }
+  const scriptCmd = PLATFORM === 'win32' ? 'bash' : './docker-build.sh';
+  const args = PLATFORM === 'win32' ? ['./docker-build.sh'] : [];
+  args.push(`--target=${targets.join(',')}`);
+  if (IS_DEBUG) args.push('--debug');
+  console.log(`${colors.green}🚀 Starting Docker Build...${colors.reset}`);
+  runSync(scriptCmd, args, { stdio: 'inherit' });
+}
+async function main() {
+  console.log(
+    `${colors.green}=========================================${colors.reset}`
+  );
+  console.log(
+    `${colors.green}   🚀 ViveStream Smart Build System      ${colors.reset}`
+  );
+  console.log(
+    `${colors.green}=========================================${colors.reset}`
+  );
+  runSync('npm', ['run', 'env:update']);
+  if (PLATFORM === 'linux') {
+    console.log(`${colors.cyan}🐧 Linux Host Detected.${colors.reset}`);
+    console.log(`Building native targets: ${HOST_LINUX_TARGETS.join(', ')}`);
+    const linuxArgs = [
       'helpers/builder.js',
       '--linux',
-      `--target=${hostTargets.join(',')}`,
-    ]);
-    if (!success) {
-      console.error(`${colors.red}❌ Host build failed.${colors.reset}`);
-      process.exit(1);
+      `--target=${HOST_LINUX_TARGETS.join(',')}`,
+    ];
+    if (IS_DEBUG) linuxArgs.push('--debug');
+    runSync('node', linuxArgs);
+    const buildWin = await ask(
+      'Do you want to cross-compile for Windows (exe, msi, source)?'
+    );
+    if (buildWin) {
+      console.log(
+        `${colors.cyan}🪟 Starting Windows Cross-Compilation...${colors.reset}`
+      );
+      const winArgs = [
+        'helpers/builder.js',
+        '--win',
+        `--target=${WINDOWS_TARGETS.join(',')}`,
+      ];
+      if (IS_DEBUG) winArgs.push('--debug');
+      runSync('node', winArgs);
     }
+    const buildRpm = await ask(
+      'Do you want to build the RPM package in Docker?'
+    );
+    if (buildRpm) {
+      await runDockerBuild(['rpm']);
+    }
+  } else if (PLATFORM === 'win32') {
+    console.log(`${colors.cyan}🪟 Windows Host Detected.${colors.reset}`);
+    console.log(`Building native targets: ${WINDOWS_TARGETS.join(', ')}`);
+    const winArgs = [
+      'helpers/builder.js',
+      '--win',
+      `--target=${WINDOWS_TARGETS.join(',')}`,
+    ];
+    if (IS_DEBUG) winArgs.push('--debug');
+    runSync('node', winArgs);
+    const buildLinux = await ask(
+      'Do you want to build Linux packages in Docker?'
+    );
+    if (buildLinux) {
+      await runDockerBuild(ALL_LINUX_TARGETS);
+    }
+  } else {
+    console.error(
+      `${colors.red}Unsupported Host Platform: ${PLATFORM}${colors.reset}`
+    );
   }
-  console.log(
-    `\n${colors.green}✨ All build processes finished.${colors.reset}`
-  );
-  console.log(`   Check 'release/' for artifacts.`);
+  console.log(`\n${colors.green}✨ All tasks finished.${colors.reset}`);
+  rl.close();
 }
 main();
