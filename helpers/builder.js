@@ -13,17 +13,17 @@ const colors = {
   gray: '\x1b[90m',
   reset: '\x1b[0m',
 };
+const IS_DEBUG = process.argv.includes('--debug');
 function toPosix(p) {
   return p.split(path.sep).join(path.posix.sep);
 }
 function log(step, message) {
-  console.log(`${colors.cyan}[${step}]${colors.reset} ${message}`);
+  if (IS_DEBUG) {
+    console.log(`${colors.cyan}[${step}]${colors.reset} ${message}`);
+  }
 }
-function parseVerbose() {
-  return process.argv.includes('--verbose') || process.argv.includes('--debug');
-}
-function parseDebug() {
-  return process.argv.includes('--debug');
+function logAlways(message) {
+  console.log(message);
 }
 function parsePublish() {
   return process.argv.includes('--publish');
@@ -35,7 +35,7 @@ function parseTargets() {
     if (arg.startsWith('--target=')) {
       const val = arg.split('=')[1];
       if (val === 'all') {
-        targets = ['AppImage', 'deb', 'rpm', 'snap', 'flatpak', 'tar.gz'];
+        targets = ['AppImage', 'deb', 'rpm', 'snap', 'tar.gz'];
       } else {
         targets = val.split(',').map((t) => t.trim());
       }
@@ -69,17 +69,16 @@ function getPlatformConfig() {
         target:
           targets.length > 0
             ? targets
-            : ['AppImage', 'deb', 'rpm', 'snap', 'flatpak', 'tar.gz'],
+            : ['AppImage', 'deb', 'rpm', 'snap', 'tar.gz'],
         excludePatterns: ['**/bin/win32/**'],
       };
     default:
       throw new Error(
-        `Unsupported platform or Mac/Darwin is no longer supported: ${platform}`
+        `Unsupported platform: ${platform}. Only Windows and Linux are supported.`
       );
   }
 }
 async function executeCommand(command, args, cwd) {
-  const verbose = parseVerbose();
   return new Promise((resolve, reject) => {
     const cmd =
       process.platform === 'win32' && command === 'npx' ? 'npx.cmd' : command;
@@ -87,179 +86,144 @@ async function executeCommand(command, args, cwd) {
       .map((a) => (a.includes(' ') ? `"${a}"` : a))
       .join(' ');
     const env = { ...process.env, NODE_NO_WARNINGS: 1 };
-    if (verbose && command === 'npx' && args.includes('electron-builder')) {
-      env.DEBUG = 'electron-builder';
-    }
+    const stdioMode = IS_DEBUG ? 'inherit' : 'ignore';
     const child = spawn(fullCommand, {
       cwd: cwd,
       shell: true,
       env: env,
-    });
-    let stdoutLog = '';
-    let stderrLog = '';
-    let hasLoggedPackaging = false;
-    let hasLoggedInstaller = false;
-    child.stdout.on('data', (data) => {
-      const str = data.toString();
-      stdoutLog += str;
-      if (verbose) console.log(str.trimEnd());
-      const lowerStr = str.toLowerCase();
-      if (lowerStr.includes('downloading') && !lowerStr.includes('part')) {
-        console.log(
-          `   ${colors.gray}↓  Downloading resources...${colors.reset}`
-        );
-      } else if (lowerStr.includes('packaging') && !hasLoggedPackaging) {
-        console.log(
-          `   ${colors.green}→  Packaging application...${colors.reset}`
-        );
-        hasLoggedPackaging = true;
-      } else if (
-        (lowerStr.includes('msi') ||
-          lowerStr.includes('nsis') ||
-          lowerStr.includes('snap') ||
-          lowerStr.includes('deb') ||
-          lowerStr.includes('rpm') ||
-          lowerStr.includes('flatpak') ||
-          lowerStr.includes('tar')) &&
-        !hasLoggedInstaller &&
-        lowerStr.includes('building')
-      ) {
-        console.log(
-          `   ${colors.green}→  Building Installer/Package...${colors.reset}`
-        );
-        hasLoggedInstaller = true;
-      }
-    });
-    child.stderr.on('data', (data) => {
-      const str = data.toString();
-      stderrLog += str;
-      if (
-        verbose ||
-        str.toLowerCase().includes('error') ||
-        str.toLowerCase().includes('fatal')
-      ) {
-        console.error(`${colors.red}${str.trimEnd()}${colors.reset}`);
-      }
+      stdio: stdioMode,
     });
     child.on('close', (code) => {
       if (code === 0) resolve();
       else {
-        if (!verbose) {
-          console.error(
-            `\n${colors.red}--- BUILD FAILURE LOGS ---${colors.reset}`
-          );
-          console.error(stderrLog.slice(-10000));
-          if (stderrLog.length < 100) console.error(stdoutLog.slice(-5000));
-          console.error(
-            `${colors.red}--------------------------${colors.reset}\n`
-          );
-        }
         reject(new Error(`Command failed with code ${code}`));
       }
     });
   });
 }
+async function packSourceCode(rootDir, releaseDir) {
+  logAlways(`${colors.cyan}📦 Packaging Source Code...${colors.reset}`);
+  const version = require(path.join(rootDir, 'package.json')).version;
+  const zipName = `ViveStream-Source-v${version}.zip`;
+  const outputPath = path.join(releaseDir, zipName);
+  if (!fs.existsSync(releaseDir)) fs.mkdirSync(releaseDir, { recursive: true });
+  try {
+    const exclude = [
+      'node_modules/*',
+      'python-portable/*',
+      '.git/*',
+      'release/*',
+      '*.log',
+      'helpers/large-file-manager.js',
+    ]
+      .map((x) => `-x "${x}"`)
+      .join(' ');
+    await executeCommand(`zip -r "${outputPath}" . ${exclude}`, [], rootDir);
+    logAlways(`   ${colors.green}✔ Created ${zipName}${colors.reset}`);
+  } catch (e) {
+    console.error(
+      `${colors.red}Failed to zip source: ${e.message}${colors.reset}`
+    );
+  }
+}
+function cleanSpecificTargets(releaseDir, targets) {
+  if (!fs.existsSync(releaseDir)) return;
+  const extMap = {
+    nsis: ['.exe'],
+    msi: ['.msi'],
+    deb: ['.deb'],
+    rpm: ['.rpm'],
+    AppImage: ['.AppImage'],
+    snap: ['.snap'],
+    'tar.gz': ['.tar.gz'],
+    zip: ['.zip'],
+  };
+  const files = fs.readdirSync(releaseDir);
+  let deletedCount = 0;
+  files.forEach((file) => {
+    let shouldDelete = false;
+    targets.forEach((target) => {
+      const exts = extMap[target] || [];
+      exts.forEach((ext) => {
+        if (file.endsWith(ext)) shouldDelete = true;
+      });
+    });
+    if (shouldDelete) {
+      try {
+        fs.unlinkSync(path.join(releaseDir, file));
+        deletedCount++;
+      } catch (e) {}
+    }
+  });
+  if (deletedCount > 0 && IS_DEBUG) {
+    console.log(
+      `   ${colors.yellow}✔ Deleted ${deletedCount} old artifact(s).${colors.reset}`
+    );
+  }
+}
 function cleanUnwantedFiles(dirPath) {
   if (!fs.existsSync(dirPath)) return;
   const files = fs.readdirSync(dirPath);
-  for (const file of files) {
+  const itemsToRemove = [
+    'builder-debug.yml',
+    'latest-linux.yml',
+    'latest.yml',
+    '.icon-set',
+    'linux-unpacked',
+    'win-unpacked',
+  ];
+  files.forEach((file) => {
     const fullPath = path.join(dirPath, file);
-    let stat;
     try {
-      stat = fs.statSync(fullPath);
+      if (itemsToRemove.includes(file)) {
+        fs.rmSync(fullPath, { recursive: true, force: true });
+        return;
+      }
+      if (file.endsWith('.blockmap')) {
+        fs.unlinkSync(fullPath);
+        return;
+      }
     } catch (e) {
-      continue;
+      if (IS_DEBUG) console.error(`Cleanup warning: ${e.message}`);
     }
-    if (stat.isDirectory()) {
-      if (file.includes('unpacked')) {
-        try {
-          fs.rmSync(fullPath, { recursive: true, force: true });
-          console.log(
-            `   ${colors.yellow}× Deleted Unpacked Dir: ${file}${colors.reset}`
-          );
-        } catch (e) {}
-      } else if (
-        file === 'linux' ||
-        file === 'win' ||
-        file === 'win-unpacked' ||
-        file === 'linux-unpacked'
-      ) {
-        try {
-          fs.rmSync(fullPath, { recursive: true, force: true });
-        } catch (e) {}
-      }
-    } else {
-      if (file.endsWith('.yml') || file.endsWith('.blockmap')) {
-        try {
-          fs.unlinkSync(fullPath);
-          console.log(
-            `   ${colors.yellow}× Deleted Unwanted File: ${file}${colors.reset}`
-          );
-        } catch (e) {}
-      }
-    }
-  }
+  });
 }
 async function runBuild() {
-  const platformConfig = getPlatformConfig();
   const rootDir = path.join(__dirname, '..');
   const releaseDir = path.join(rootDir, 'release');
   const tempConfigPath = path.join(rootDir, 'temp-build-config.json');
-  const verbose = parseVerbose();
-  const debug = parseDebug();
   const shouldPublish = parsePublish();
-  console.log(
-    colors.cyan +
-      '==================================================' +
-      colors.reset
-  );
-  console.log(
-    colors.cyan +
-      '            ViveStream Custom Builder             ' +
-      colors.reset
-  );
-  console.log(
-    colors.cyan +
-      '==================================================' +
-      colors.reset
-  );
-  console.log(
-    `   Target Platform: ${colors.yellow}${platformConfig.name}${colors.reset}`
-  );
-  console.log(
-    `   Bundling Python: ${colors.yellow}${platformConfig.pythonSource}${colors.reset}`
-  );
-  console.log(`   Isolation:       ${colors.green}Enabled${colors.reset}`);
-  console.log(
-    `   Publishing:      ${shouldPublish ? colors.green + 'Yes' : colors.gray + 'No'}${colors.reset}`
+  const targets = parseTargets();
+  const args = process.argv;
+  if (targets.includes('source')) {
+    await packSourceCode(rootDir, releaseDir);
+    if (targets.length === 1) return;
+  }
+  const platformConfig = getPlatformConfig();
+  platformConfig.target = platformConfig.target.filter((t) => t !== 'source');
+  if (platformConfig.target.length === 0) return;
+  logAlways(`${colors.cyan}=== ViveStream Custom Builder ===${colors.reset}`);
+  logAlways(
+    `   Target: ${colors.yellow}${platformConfig.target.join(', ')}${colors.reset} | Debug: ${IS_DEBUG ? 'ON' : 'OFF'}`
   );
   log('1/6', 'Preparing Environment');
-  console.log(`   ${colors.gray}→  Joining split files...${colors.reset}`);
   await executeCommand(
     'node',
     ['helpers/large-file-manager.js', 'join'],
     rootDir
   );
-  console.log(
-    `   ${colors.gray}→  Cleaning Python environment...${colors.reset}`
-  );
   await executeCommand('node', ['helpers/cleanup.js'], rootDir);
-  console.log(`   ${colors.green}✔ Environment Ready.${colors.reset}`);
-  log('\n2/6', 'Cleanup Build Dirs');
-  if (!debug && fs.existsSync(releaseDir)) {
-    try {
-      if (rimrafSync) rimrafSync(releaseDir);
-      else await rimraf(releaseDir);
-    } catch (e) {}
+  log('2/6', 'Selective Cleanup');
+  if (fs.existsSync(releaseDir)) {
+    cleanSpecificTargets(releaseDir, platformConfig.target);
   }
-  console.log(`   ${colors.green}✔ Cleaned.${colors.reset}`);
-  log('\n3/6', 'Rebuilding Native Dependencies');
+  log('3/6', 'Rebuilding Native Dependencies');
   await executeCommand(
     'npx',
     ['electron-builder', 'install-app-deps'],
     rootDir
   );
-  log('\n4/6', 'Packaging');
+  log('4/6', 'Packaging');
   const extraResources = [];
   if (platformConfig.pythonSource) {
     const pPath = path.join(rootDir, platformConfig.pythonSource);
@@ -273,21 +237,13 @@ async function runBuild() {
             );
         } catch (e) {}
       }
-      const filterPatterns = ['**/*'];
-      if (platformConfig.excludePatterns) {
-        platformConfig.excludePatterns.forEach((p) =>
-          filterPatterns.push(`!${p}`)
-        );
-      }
       extraResources.push({
         from: toPosix(platformConfig.pythonSource),
         to: toPosix(platformConfig.pythonSource),
-        filter: filterPatterns,
+        filter: platformConfig.excludePatterns
+          ? ['**/*', ...platformConfig.excludePatterns.map((p) => `!${p}`)]
+          : ['**/*'],
       });
-    } else {
-      console.warn(
-        `${colors.red}WARNING: Portable Python not found at ${platformConfig.pythonSource}${colors.reset}`
-      );
     }
   }
   const buildConfig = {
@@ -313,51 +269,26 @@ async function runBuild() {
     compression: 'store',
     asar: true,
     win: {
-      target:
-        platformConfig.id === 'win' ? platformConfig.target : ['nsis', 'msi'],
+      target: platformConfig.target,
       icon: toPosix(path.join(rootDir, 'assets', 'icon.ico')),
-      legalTrademarks: 'ViveStream',
     },
     nsis: {
-      oneClick: false,
-      perMachine: true,
-      allowToChangeInstallationDirectory: true,
-      deleteAppDataOnUninstall: false,
-      include: 'build/installer.nsh',
-      runAfterFinish: true,
-      shortcutName: 'ViveStream',
-    },
-    msi: {
       oneClick: false,
       perMachine: true,
       runAfterFinish: true,
       shortcutName: 'ViveStream',
     },
     linux: {
-      target:
-        platformConfig.id === 'linux' ? platformConfig.target : ['AppImage'],
+      target: platformConfig.target,
       icon: toPosix(path.join(rootDir, 'assets')),
       category: 'Video',
       executableName: 'vivestream-revived',
       maintainer: 'Md Siam Mia <vivestream.revived@example.com>',
       synopsis: 'Offline media player and downloader',
       description: 'Your personal, offline, and stylish media sanctuary.',
+      artifactName: '${productName}-${version}-${arch}.${ext}',
     },
-    deb: {
-      compression: 'gz',
-    },
-    rpm: {
-      fpm: [
-        '--rpm-rpmbuild-define',
-        '_build_id_links none',
-        '--rpm-rpmbuild-define',
-        '_enable_debug_packages 0',
-        '--rpm-compression',
-        'bzip2',
-        '--name',
-        'vivestream-revived',
-      ],
-    },
+    rpm: { fpm: ['--rpm-compression', 'bzip2'] },
   };
   fs.writeFileSync(tempConfigPath, JSON.stringify(buildConfig, null, 2));
   const builderArgs = [
@@ -366,24 +297,19 @@ async function runBuild() {
     'temp-build-config.json',
     platformConfig.cliFlag,
   ];
-  if (shouldPublish) {
-    builderArgs.push('--publish', 'always');
-  } else {
-    builderArgs.push('--publish', 'never');
-  }
+  if (shouldPublish) builderArgs.push('--publish', 'always');
+  else builderArgs.push('--publish', 'never');
   try {
     await executeCommand('npx', builderArgs, rootDir);
   } catch (e) {
-    if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
+    if (!IS_DEBUG && fs.existsSync(tempConfigPath))
+      fs.unlinkSync(tempConfigPath);
     throw e;
   }
-  if (!debug && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
-  log('\n5/6', 'Cleaning & Organizing');
-  if (!debug) {
-    cleanUnwantedFiles(releaseDir);
-  }
-  log('\n6/6', 'Complete');
-  console.log(`${colors.green}   Build Successful!${colors.reset}`);
+  if (!IS_DEBUG && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
+  log('\n5/6', 'Cleaning Temp Files');
+  if (!IS_DEBUG) cleanUnwantedFiles(releaseDir);
+  logAlways(`${colors.green}   Build Successful!${colors.reset}`);
 }
 runBuild().catch((err) => {
   console.error(`\n${colors.red}[FATAL] ${err.message}${colors.reset}`);
