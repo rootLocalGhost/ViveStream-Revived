@@ -1,8 +1,6 @@
 <div align="center">
   <img src="./assets/Banner.png" alt="ViveStream Banner">
-
 ---
-
   <p>
     <!-- Release Info -->
     <a href="https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/releases">
@@ -13,7 +11,6 @@
     </a>
     <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-informational?style=flat-square" alt="Platform">
   </p>
-
   <p>
     <!-- Stats -->
     <img src="https://img.shields.io/github/downloads/Md-Siam-Mia-Man/ViveStream-Revived/total?style=flat-square&color=success&label=Downloads" alt="Total Downloads">
@@ -25,7 +22,6 @@
     </a>
     <img src="https://img.shields.io/github/last-commit/Md-Siam-Mia-Man/ViveStream-Revived?style=flat-square" alt="Last Commit">
   </p>
-
 <p>
 <!-- Tech Stack -->
     <img src="https://img.shields.io/badge/Electron-2B2E3A?style=flat-square&logo=electron&logoColor=9FEAF9" alt="Electron">
@@ -37,8 +33,7 @@
   </p>
 </div>
 
-Welcome! **ViveStream** is a modern, offline-first media player built for those who want to curate their own collection of videos and music. It downloads content using `yt-dlp`, organizes it into a robust local database, and provides a polished, high-performance interface for you to enjoy your media without ads, buffering, or an internet connection.
-
+👋 Welcome! **ViveStream** is a modern, offline-first media player built for those who want to curate their own collection of videos and music. It downloads content using `yt-dlp`, organizes it into a robust local database, and provides a polished, high-performance interface for you to enjoy your media without ads, buffering, or an internet connection.
 <img src="./assets/UI.png" alt="ViveStream UI">
 
 ---
@@ -85,15 +80,14 @@ Welcome! **ViveStream** is a modern, offline-first media player built for those 
 
 1. Go to the [**Releases**](https://github.com/Md-Siam-Mia-Man/ViveStream-Revived/releases) page.
 2. Download the installer for your OS:
-   - **Windows:** `ViveStream-Setup-x.x.x.exe`
-   - **Linux:** `.AppImage`, `.deb`, or `.rpm`
-   - **macOS:** `.dmg`
+   - **🪟 Windows:** `ViveStream-Revived-Setup-x.x.x.exe` or `.msi`.
+   - **🐧 Linux:** `.AppImage`, `.deb`, `.rpm`, `.snap`, or `.tar.gz`.
 3. Run the installer.
 
 #### 🗑️ Uninstallation & Data
 
-- **Windows:** The uninstaller will ask if you want to keep or delete your media library and database.
-- **Linux / macOS:** Due to OS limitations, uninstalling the app **does not** automatically remove your downloaded media (`~/ViveStream`) or database.
+- **🪟 Windows:** The uninstaller will ask if you want to keep or delete your media library and database.
+- **🐧 Linux:** Due to OS limitations, uninstalling the app **does not** automatically remove your downloaded media (`~/ViveStream`) or database.
   - **Tip:** Go to **Settings > Danger Zone > Clear All Media** & **Delete Database** inside the app _before_ uninstalling if you want a clean slate.
 
 ---
@@ -103,28 +97,21 @@ Welcome! **ViveStream** is a modern, offline-first media player built for those 
 See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` for a deep dive into the code.
 
 1. **Clone the repository:**
-
    ```bash
    git clone https://github.com/Md-Siam-Mia-Man/ViveStream-Revived.git
    cd ViveStream-Revived
    ```
-
 2. **Install dependencies:**
    _This automatically reassembles any large files via the `postinstall` hook._
-
    ```bash
    npm install
    ```
-
 3. **Update/Hydrate Binaries (Optional but Recommended):**
    _Detects your OS and ensures `yt-dlp` and `static-ffmpeg` are up to date and executable._
-
    ```bash
    npm run env:update
    ```
-
 4. **Run the application:**
-
    ```bash
    npm start
    ```
@@ -136,12 +123,10 @@ See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` f
 1. **Download or Import Content**
    - Navigate to the **Downloads** page to fetch content from a URL.
    - Go to **Settings > Maintenance** and click **Import Files** to add local media from your computer.
-
 2. **Manage Your Library**
    - The **Home** and **Favorites** pages display your media. Use the filter and sort buttons to refine your view.
    - The **Playlists** and **Artists** pages provide curated views. Click on a playlist or artist to see their content, where you can also upload custom cover images.
    - Use the global search bar at the top to find anything in your library.
-
 3. **Enjoy Your Media**
    - Click any thumbnail to begin playback.
    - The "Up Next" queue will automatically show other videos from the context you started playback from (e.g., the rest of the playlist).
@@ -169,18 +154,14 @@ See `docs/DEVELOPMENT.md` for detailed instructions and `docs/ARCHITECTURE.md` f
 To package the application for your current platform:
 
 ```bash
-# Automatically detects the platform and the build format
-npm run build
-
-# Windows (creates .exe installer)
+# Windows (.exe, .msi, .zip source)
 npm run build:win
-
-# Linux (creates AppImage, deb, rpm, flatpak, tar.gz)
-npm run build:linux:all
-
-# Linux (Docker). You must have docker installed and running for this
-# This will create AppImage, deb, rpm, flatpak, tar.gz
-npm run build:linux:docker
+# Linux (.AppImage, .deb, .snap, .tar.gz)
+npm run build:linux
+# Linux via Docker (.rpm and others)
+npm run build:docker
+# Build All (Win + Linux - Requires proper host config)
+npm run build:all
 ```
 
 ---
