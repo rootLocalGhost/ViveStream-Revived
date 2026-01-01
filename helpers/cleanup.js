@@ -11,6 +11,7 @@ const TOP_LEVEL_DIRS_TO_REMOVE = [
   'libs',
   'Tools',
   '%cd%',
+  'python-darwin-x64', 
 ];
 const EXECUTABLES_ALLOWLIST = [
   'python',
@@ -49,7 +50,6 @@ function deleteItem(itemPath) {
     try {
       fs.rmSync(itemPath, { recursive: true, force: true });
     } catch (e) {
-      console.error(`❌ Failed to delete ${itemPath}: ${e.message}`);
     }
   }
 }
@@ -67,7 +67,6 @@ function cleanExecutablesFolder(folderPath) {
   if (folderPath.split(path.sep).includes('static_ffmpeg')) {
     return;
   }
-  console.log(`   ⚙️  Cleaning Executables in: ${folderPath}`);
   try {
     const files = fs.readdirSync(folderPath);
     files.forEach((file) => {
@@ -79,9 +78,7 @@ function cleanExecutablesFolder(folderPath) {
         }
       }
     });
-  } catch (e) {
-    console.warn(`   ⚠️  Could not clean executables folder: ${e.message}`);
-  }
+  } catch (e) {}
 }
 function cleanSitePackagesFolder(folderPath) {
   if (!fs.existsSync(folderPath)) return;
@@ -155,25 +152,21 @@ function walkAndClean(currentDir) {
   });
 }
 function main() {
-  console.log('=========================================');
-  console.log('   🧹 DEEP CLEANUP: Python Portable');
-  console.log('=========================================');
-  if (!fs.existsSync(PORTABLE_ROOT)) {
-    console.error(`❌ Could not find: ${PORTABLE_ROOT}`);
-    return;
-  }
+  if (!fs.existsSync(PORTABLE_ROOT)) return;
   const platforms = fs.readdirSync(PORTABLE_ROOT).filter((f) => {
     return fs.statSync(path.join(PORTABLE_ROOT, f)).isDirectory();
   });
   platforms.forEach((platform) => {
+    if (platform.includes('darwin') || platform.includes('macos')) {
+      deleteItem(path.join(PORTABLE_ROOT, platform));
+      return;
+    }
     const platformPath = path.join(PORTABLE_ROOT, platform);
-    console.log(`\n📂 Platform: ${platform}`);
     TOP_LEVEL_DIRS_TO_REMOVE.forEach((d) =>
       deleteItem(path.join(platformPath, d))
     );
     walkAndClean(platformPath);
   });
-  console.log(`\n✨ Cleanup Finished.`);
 }
 if (require.main === module) {
   main();
