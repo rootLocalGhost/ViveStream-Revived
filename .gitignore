@@ -9,7 +9,7 @@ temp-build-config.json
 # Generated frontend libraries (populated by npm install)
 src/renderer/js/lib/
 # Portable Python Environment (downloaded/cloned separately)
-python-portable
+pyvenv
 # Logs and debug info
 *.log
 npm-debug.log*
