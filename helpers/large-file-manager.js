@@ -12,7 +12,7 @@ const colors = {
   gray: '\x1b[90m',
   reset: '\x1b[0m',
 };
-const TARGET_DIR = path.join(__dirname, '..', 'python-portable');
+const TARGET_DIR = path.join(__dirname, '..', 'pyvenv');
 const CHUNK_EXT = '.chunk';
 const CHUNK_SIZE = 1024 * 1024 * 90;
 function getAllFiles(dirPath, arrayOfFiles) {
@@ -99,10 +99,10 @@ if (!fs.existsSync(TARGET_DIR)) {
   console.log(
     `${colors.yellow}Target directory not found: ${TARGET_DIR}${colors.reset}`
   );
-  console.log(`${colors.green}Auto-cloning python-portable...${colors.reset}`);
+  console.log(`${colors.green}Auto-cloning pyvenv...${colors.reset}`);
   try {
     execSync(
-      'git clone https://github.com/SudoLocalGhost/python-portable.git --depth 1',
+      'git clone https://github.com/SudoLocalGhost/pyvenv.git --depth 1',
       {
         cwd: path.dirname(TARGET_DIR),
         stdio: 'inherit',
@@ -121,10 +121,10 @@ if (!fs.existsSync(TARGET_DIR)) {
     }
   } catch (e) {
     console.error(
-      `${colors.red}Failed to clone python-portable: ${e.message}${colors.reset}`
+      `${colors.red}Failed to clone pyvenv: ${e.message}${colors.reset}`
     );
     console.warn(
-      `${colors.yellow}Please manually run: git clone https://github.com/SudoLocalGhost/python-portable.git ${colors.reset}`
+      `${colors.yellow}Please manually run: git clone https://github.com/SudoLocalGhost/pyvenv.git ${colors.reset}`
     );
     process.exit(1);
   }

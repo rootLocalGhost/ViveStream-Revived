@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const PORTABLE_ROOT = path.join(__dirname, '..', 'python-portable');
+const PORTABLE_ROOT = path.join(__dirname, '..', 'pyvenv');
 const TOP_LEVEL_DIRS_TO_REMOVE = [
   'include',
   'share',
@@ -11,7 +11,7 @@ const TOP_LEVEL_DIRS_TO_REMOVE = [
   'libs',
   'Tools',
   '%cd%',
-  'python-darwin-x64', 
+  'python-darwin-x64',
 ];
 const EXECUTABLES_ALLOWLIST = [
   'python',
@@ -49,8 +49,7 @@ function deleteItem(itemPath) {
   if (fs.existsSync(itemPath)) {
     try {
       fs.rmSync(itemPath, { recursive: true, force: true });
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 }
 function isAllowlisted(filename) {

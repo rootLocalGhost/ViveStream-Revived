@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const PORTABLE_ROOT = path.join(__dirname, '..', 'python-portable');
+const PORTABLE_ROOT = path.join(__dirname, '..', 'pyvenv');
 function getPythonPath() {
   if (process.platform === 'win32') {
     return {

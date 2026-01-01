@@ -54,13 +54,13 @@ function getPlatformConfig() {
       return {
         id: 'win',
         name: 'Windows',
-        pythonSource: 'python-portable/python-win-x64',
+        pythonSource: 'pyvenv/python-win-x64',
         cliFlag: '--win',
         target: targets.length > 0 ? targets : ['nsis', 'msi'],
         excludePatterns: ['**/bin/linux/**'],
       };
     case 'linux':
-      const gnuPath = 'python-portable/python-linux-gnu';
+      const gnuPath = 'pyvenv/python-linux-gnu';
       return {
         id: 'linux',
         name: 'Linux',
@@ -110,7 +110,7 @@ async function packSourceCode(rootDir, releaseDir) {
   try {
     const exclude = [
       'node_modules/*',
-      'python-portable/*',
+      'pyvenv/*',
       '.git/*',
       'release/*',
       '*.log',
@@ -260,7 +260,7 @@ async function runBuild() {
       '!**/node_modules/*.d.ts',
       '!**/node_modules/.bin',
       '!vendor/**/*',
-      '!python-portable/**/*',
+      '!pyvenv/**/*',
       '!**/.git/**',
       '!**/.github/**',
       '!**/helpers/**',
