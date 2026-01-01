@@ -39,7 +39,7 @@ export function activateMiniplayer() {
     }
   }
 
-  // Removed explicit subtitle hiding logic to allow CSS scaling instead
+
 
   if (wasHidden) {
     miniplayer.classList.remove('hidden');
@@ -54,7 +54,7 @@ export function deactivateMiniplayer() {
 
   playerSection.insertBefore(videoPlayer, playerSection.firstChild);
 
-  // Removed explicit subtitle restoring logic
+
 
   miniplayer.classList.add('hidden');
 }

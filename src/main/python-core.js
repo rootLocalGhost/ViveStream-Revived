@@ -20,7 +20,7 @@ function getPythonDetails() {
   let pythonPath = null;
   let binDir = null;
 
-  // 1. Try Portable Python First
+
   if (process.platform === 'win32') {
     const winDir = path.join(root, 'python-win-x64');
     if (fs.existsSync(winDir)) {
@@ -28,7 +28,7 @@ function getPythonDetails() {
       binDir = path.join(winDir, 'Scripts');
     }
   } else {
-    // Linux (GNU)
+
     const linuxGnu = path.join(root, 'python-linux-gnu');
 
     if (fs.existsSync(linuxGnu)) {
@@ -37,7 +37,7 @@ function getPythonDetails() {
     }
   }
 
-  // 2. Fallback to System Python if Portable not found
+
   if (!pythonPath || !fs.existsSync(pythonPath)) {
     console.warn('[Python Core] Portable Python not found. Checking system...');
     try {
@@ -60,7 +60,7 @@ function getPythonDetails() {
     }
   }
 
-  // Ensure execution permissions on non-Windows platforms
+
   if (pythonPath && fs.existsSync(pythonPath) && process.platform !== 'win32') {
     try {
       fs.chmodSync(pythonPath, 0o755);
@@ -85,7 +85,7 @@ function spawnPython(args, options = {}) {
     const pathKey = process.platform === 'win32' ? 'Path' : 'PATH';
     env[pathKey] = `${binDir}${path.delimiter}${env[pathKey] || ''}`;
   }
-  // Force unbuffered output so logs stream immediately
+
   env['PYTHONUNBUFFERED'] = '1';
   return spawn(pythonPath, args, { ...options, env });
 }

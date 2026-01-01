@@ -3,7 +3,7 @@ import { showNotification } from './notifications.js';
 import { AppState } from './state.js';
 import { eventBus } from './event-bus.js';
 
-// DOM Elements
+
 const urlInput = document.getElementById('url-input');
 const startDownloadBtn = document.getElementById('start-download-btn');
 const typeOptions = document.querySelectorAll('.dl-type-option');
@@ -15,7 +15,7 @@ const summaryActive = document.getElementById('summary-active');
 const summaryCompleted = document.getElementById('summary-completed');
 const summaryFailed = document.getElementById('summary-failed');
 
-// Config Elements
+
 const qualityConfig = document.getElementById('quality-config');
 const formatConfig = document.getElementById('format-config');
 const subsConfig = document.getElementById('subs-config');
@@ -29,24 +29,24 @@ const liveToggle = document.getElementById('live-from-start-toggle');
 const playlistInput = document.getElementById('playlist-items-input');
 const audioQualitySlider = document.getElementById('audio-quality-slider');
 
-// Dropdowns
+
 const qualityDropdown = document.getElementById('quality-dropdown');
 const formatDropdown = document.getElementById('format-dropdown');
 
-// Lists
+
 const downloadQueueArea = document.getElementById('download-queue-area');
 const historyListContainer = document.getElementById('history-list-container');
 const queueEmptyState = document.getElementById('empty-queue-placeholder');
 const historyEmptyState = document.getElementById('empty-history-placeholder');
 
-// State
+
 let currentType = 'video';
 const downloadJobs = new Map();
 const pendingInfoJobs = new Map();
 const errorLogs = new Map();
-let currentLogModalId = null; // Track which ID is currently shown in modal
+let currentLogModalId = null;
 
-// --- Helper for Empty States ---
+
 function updateEmptyStates() {
   const hasQueueItems = downloadQueueArea.children.length > 0;
   queueEmptyState.classList.toggle('hidden', hasQueueItems);
@@ -82,7 +82,7 @@ function updateSummary() {
   summaryFailed.textContent = `Failed: ${failed}`;
 }
 
-// --- UI Logic ---
+
 
 function updateUIState() {
   const isVideo = currentType === 'video';
@@ -155,7 +155,7 @@ function setupTabs() {
   });
 }
 
-// --- History Logic ---
+
 
 async function loadHistory() {
   const history = await window.electronAPI.historyGet();
@@ -222,7 +222,7 @@ async function loadHistory() {
   updateEmptyStates();
 }
 
-// --- Search Filter Logic ---
+
 eventBus.on('search:downloads', (searchTerm) => {
   const term = searchTerm.toLowerCase();
 
@@ -251,7 +251,7 @@ eventBus.on('search:downloads', (searchTerm) => {
   });
 });
 
-// --- Download Logic ---
+
 
 startDownloadBtn.addEventListener('click', (e) => {
   e.preventDefault();
@@ -427,7 +427,7 @@ queueClearBtn.addEventListener('click', async () => {
     );
     cards.forEach((card) => {
       const status = card.dataset.status;
-      // Only clear finished or failed tasks, keep active ones
+
       if (
         status === 'completed' ||
         status === 'error' ||
@@ -463,13 +463,13 @@ function showErrorLog(errorData) {
   document.body.appendChild(modal);
   requestAnimationFrame(() => modal.classList.remove('hidden'));
 
-  // Auto-scroll to bottom
+
   const logArea = modal.querySelector('#log-content-area');
   logArea.scrollTop = logArea.scrollHeight;
 
   modal.querySelector('#close-log-btn').addEventListener('click', () => {
     modal.classList.add('hidden');
-    currentLogModalId = null; // Clear active log modal ID
+    currentLogModalId = null;
     setTimeout(() => modal.remove(), 300);
   });
   modal.querySelector('#copy-log-btn').addEventListener('click', () => {
@@ -526,7 +526,7 @@ window.electronAPI.onDownloadQueueStart(
 
       errorLogs.set(info.id, { error: 'Download in progress...', fullLog: '' });
 
-      // Store FULL job details so retries work
+
       downloadJobs.set(info.id, {
         videoInfo: info,
         ...downloadOptions,
@@ -538,7 +538,7 @@ window.electronAPI.onDownloadQueueStart(
   }
 );
 
-// NEW: Live Log Listener
+
 window.electronAPI.onDownloadLog(({ id, text }) => {
   const currentData = errorLogs.get(id) || {
     error: 'Download in progress...',
@@ -547,7 +547,7 @@ window.electronAPI.onDownloadLog(({ id, text }) => {
   currentData.fullLog += text;
   errorLogs.set(id, currentData);
 
-  // If this specific log is currently open in modal, update it live
+
   if (currentLogModalId === id) {
     const logArea = document.getElementById('log-content-area');
     if (logArea) {
