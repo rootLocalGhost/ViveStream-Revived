@@ -17,6 +17,7 @@
     "build:win": "node helpers/builder.js --win --target=nsis,msi,source",
     "build:linux": "node helpers/builder.js --linux --target=AppImage,deb,snap,tar.gz",
     "build:docker": "bash ./docker-build.sh --target=AppImage,deb,rpm,snap,tar.gz",
+    "build:linux:ci": "node helpers/builder.js --linux --target=AppImage,deb,rpm,snap,flatpak,tar.gz",
     "build:all": "npm run build:win && npm run build:linux",
     "postinstall": "npm run rebuild && npm run files:join && npm run vendor:init",
     "test": "jest"
