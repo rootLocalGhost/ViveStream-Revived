@@ -19,6 +19,8 @@ jobs:
             ext: 'exe'
           - target: 'msi'
             ext: 'msi'
+          - target: 'source'
+            ext: 'zip'
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -38,13 +40,8 @@ jobs:
       - name: Clean NPM Cache (Optional)
         if: ${{ inputs.clean_cache }}
         run: npm cache clean --force
-      - name: Configure NPM Retries
-        run: |
-          npm config set fetch-retries 5
-          npm config set fetch-retry-mintimeout 20000
-          npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
-        run: npm ci
+        run: npm ci --silent
       - name: Hydrate Python Environment
         run: npm run env:update
       - name: Clean Environment
