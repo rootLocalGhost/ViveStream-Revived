@@ -96,7 +96,7 @@ A unique feature of this project is how it handles dependencies like `ffmpeg` an
 
 We use a custom wrapper around `electron-builder` (`helpers/builder.js`) to handle complex cross-platform requirements:
 
-- **Windows**: Injects a portable Python environment (`python-portable/`) so users don't need Python installed.
+- **Windows**: Injects a portable Python environment (`pyvenv/`) so users don't need Python installed.
 - **Linux**: Supports AppImage, Deb, RPM, Snap.
 - **macOS**: Handles DMG creation.
 
