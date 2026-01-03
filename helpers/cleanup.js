@@ -38,7 +38,13 @@ const RECURSIVE_DELETE_PATTERNS = [
   'sample',
   'samples',
   'docs',
+  'doc',
   '%cd%',
+  'idle_test',
+  'dist',
+  'build',
+  '.egg-info',
+  'EGG-INFO',
 ];
 const SITE_PACKAGES_CLEANUP_RULES = [
   { pkg: 'docutils', remove: ['languages', 'parsers'] },
@@ -129,19 +135,29 @@ function walkAndClean(currentDir) {
         cleanSitePackagesFolder(fullPath);
         walkAndClean(fullPath);
       } else {
-        walkAndClean(fullPath);
+        // Skip cleaning certain essential Python directories
+        const essentialDirs = ['encodings', 'site-packages', 'lib-dynload'];
+        if (essentialDirs.includes(lowerItem)) {
+          walkAndClean(fullPath); // Only walk through, don't apply other cleanup rules
+        } else {
+          walkAndClean(fullPath);
+        }
       }
     } else {
       if (
         item.endsWith('.pdb') ||
         item.endsWith('.whl') ||
         item.endsWith('.txt') ||
-        item.endsWith('.md')
+        item.endsWith('.md') ||
+        item.endsWith('.rst') ||
+        item.endsWith('.pyc') ||
+        item.endsWith('.pyo')
       ) {
         const lower = item.toLowerCase();
         if (
           lower !== 'license.txt' &&
           lower !== 'python314._pth' &&
+          lower !== 'pyvenv.cfg' &&
           !isAllowlisted(item)
         ) {
           deleteItem(fullPath);
