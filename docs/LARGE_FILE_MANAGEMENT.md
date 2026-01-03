@@ -2,7 +2,7 @@
 
 # 🐘 Managing Large Files
 
-This project includes a portable Python environment in the `python-portable/` directory. This environment contains large binary files that exceed GitHub's file size limit of 100MB. To work around this limitation without using Git LFS, we use a custom script to split large files into smaller chunks.
+This project includes a portable Python environment in the `pyvenv/` directory. This environment contains large binary files that exceed GitHub's file size limit of 100MB. To work around this limitation without using Git LFS, we use a custom script to split large files into smaller chunks.
 
 ## The `large-file-manager.js` Script
 
@@ -10,7 +10,7 @@ The `helpers/large-file-manager.js` script is responsible for splitting and join
 
 ### How it Works
 
-- **Splitting:** The script scans the `python-portable/` directory for files larger than 90MB. When it finds one, it splits the file into 90MB chunks. The original file is then deleted. The chunks are named with a `.chunk` extension and a part number (e.g., `python.exe.chunk001`).
+- **Splitting:** The script scans the `pyvenv/` directory for files larger than 90MB. When it finds one, it splits the file into 90MB chunks. The original file is then deleted. The chunks are named with a `.chunk` extension and a part number (e.g., `python.exe.chunk001`).
 - **Joining:** The script can also join the chunks back together to restore the original file. This is done automatically after a fresh clone or can be run manually.
 
 ### Usage
@@ -19,7 +19,7 @@ The script is typically run via `npm` scripts defined in `package.json`.
 
 - **`npm run files:split`**:
   - This command will execute the `split` action.
-  - You should run this command if you have updated the `python-portable` environment and it has introduced new large files.
+  - You should run this command if you have updated the `pyvenv` environment and it has introduced new large files.
   - After running, you can commit the newly created chunk files.
 
 - **`npm run files:join`**:
@@ -29,14 +29,14 @@ The script is typically run via `npm` scripts defined in `package.json`.
 
 ## Developer Workflow
 
-If you need to update the `python-portable` dependency, follow these steps:
+If you need to update the `pyvenv` dependency, follow these steps:
 
-1.  Make your changes to the `python-portable/` directory.
+1.  Make your changes to the `pyvenv/` directory.
 2.  Run `npm run files:split` to split any new or modified large files.
 3.  Commit the changes, including the new chunk files and any deleted original large files.
 
 When other developers pull your changes, the `postinstall` script will automatically run `npm run files:join` to reassemble the files.
 
-## Cloning the `python-portable` repository
+## Cloning the `pyvenv` repository
 
-The `large-file-manager.js` script will automatically clone the `python-portable` repository if it doesn't exist. This happens when you run `npm install` in a fresh clone of this project.
+The `large-file-manager.js` script will automatically clone the `pyvenv` repository if it doesn't exist. This happens when you run `npm install` in a fresh clone of this project.
