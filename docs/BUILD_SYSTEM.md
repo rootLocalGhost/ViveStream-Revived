@@ -15,7 +15,7 @@ We do not use the standard `electron-builder` CLI directly. Instead, we run `nod
     - **Cleanup**: Runs `helpers/cleanup.js` to remove temp files from previous builds.
 2.  **Configuration**:
     - Detects the OS or target flag (`--win`, `--linux`, `--mac`).
-    - Selects the appropriate Python environment from `python-portable/`.
+    - Selects the appropriate Python environment from `pyvenv/`.
     - Selects the appropriate `vendor/<platform>` binaries.
 3.  **Dependency Injection**:
     - Copies the **platform-specific** Python folder into the build artifacts.
@@ -37,7 +37,7 @@ The `vendor/` directory contains the executable dependencies. These are managed 
 ### Structure
 
 ```
-python-portable/
+pyvenv/
 ├── python-win-x64/bin
 │   ├── ffmpeg.exe
 │   ├── ffprobe.exe
@@ -56,9 +56,9 @@ python-portable/
 
 ## 🐍 Portable Python
 
-For Windows builds, we embed a "Portable Python" distribution (`python-portable/python-win-x64`). This is because Windows does not come with Python installed by default, and `yt-dlp` (even the binary version) often benefits from or requires a python environment for certain extractors.
+For Windows builds, we embed a "Portable Python" distribution (`pyvenv/python-win-x64`). This is because Windows does not come with Python installed by default, and `yt-dlp` (even the binary version) often benefits from or requires a python environment for certain extractors.
 
-- **Source**: [https://github.com/SudoLocalGhost/python-portable](https://github.com/SudoLocalGhost/python-portable)
+- **Source**: [https://github.com/SudoLocalGhost/pyvenv](https://github.com/SudoLocalGhost/pyvenv)
 - The build script copies this entire folder into the app's resources, allowing us to spawn it via relative paths.
 
 ## 🚀 CI/CD Pipeline
