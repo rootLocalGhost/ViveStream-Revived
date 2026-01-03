@@ -6,6 +6,7 @@ import {
   toggleFPSCounter,
   setWindowControlsAlignment,
   updateSlider,
+  setSidebarAutoExpand,
 } from './ui.js';
 
 let currentSettings = {};
@@ -98,6 +99,14 @@ export async function loadSettings() {
   fpsToggle.checked = savedFps;
   toggleFPSCounter(savedFps);
 
+  const sidebarExpandToggle = document.getElementById(
+    'sidebar-auto-expand-toggle'
+  );
+  if (sidebarExpandToggle) {
+    sidebarExpandToggle.checked =
+      localStorage.getItem('sidebarAutoExpand') === 'true';
+  }
+
   const savedAlignment =
     localStorage.getItem('windowControlsAlignment') || 'auto';
   const alignmentOption = windowControlsSelect.querySelector(
@@ -130,6 +139,16 @@ export function initializeSettingsPage() {
     localStorage.setItem('showFPS', e.target.checked);
     toggleFPSCounter(e.target.checked);
   });
+
+  const sidebarExpandToggle = document.getElementById(
+    'sidebar-auto-expand-toggle'
+  );
+  if (sidebarExpandToggle) {
+    sidebarExpandToggle.addEventListener('change', (e) => {
+      localStorage.setItem('sidebarAutoExpand', e.target.checked);
+      setSidebarAutoExpand(e.target.checked);
+    });
+  }
 
   windowControlsSelect.addEventListener('change', (e) => {
     const value = e.target
