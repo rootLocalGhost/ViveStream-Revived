@@ -10,8 +10,8 @@ function getPythonDetails() {
   if (pythonDetails) return pythonDetails;
 
   const root = isDev
-    ? path.join(__dirname, '..', '..', 'python-portable')
-    : path.join(process.resourcesPath, 'python-portable');
+    ? path.join(__dirname, '..', '..', 'pyvenv')
+    : path.join(process.resourcesPath, 'pyvenv');
 
   console.log(
     `[Python Core] Detecting environment. Dev: ${isDev}, Root: ${root}`
