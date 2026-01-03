@@ -73,8 +73,14 @@ async function main() {
     }
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
     const probeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
+    const ytDlpName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+    const pipName = process.platform === 'win32' ? 'pip.exe' : 'pip';
+
     const ffmpegDest = path.join(binDir, targetName);
     const ffprobeDest = path.join(binDir, probeName);
+    const ytDlpDest = path.join(binDir, ytDlpName);
+    const pipDest = path.join(binDir, pipName);
+
     if (fs.existsSync(ffmpegDest) && fs.existsSync(ffprobeDest)) {
       console.log('✅ Binaries already exist. Skipping download.');
       return;
@@ -91,15 +97,20 @@ async function main() {
       'yt-dlp',
       'static-ffmpeg',
     ]);
+
     console.log('Hydrating FFmpeg binaries...');
     await runCommand(exe, [
       '-c',
       'import static_ffmpeg; static_ffmpeg.add_paths()',
     ]);
+
     console.log('Consolidating binaries...');
     const searchRoot = path.dirname(path.dirname(binDir));
     const ffmpegSrc = findFileRecursive(searchRoot, targetName);
     const ffprobeSrc = findFileRecursive(searchRoot, probeName);
+    const ytDlpSrc = findFileRecursive(searchRoot, ytDlpName);
+    const pipSrc = findFileRecursive(searchRoot, pipName);
+
     if (ffmpegSrc && path.resolve(ffmpegSrc) !== path.resolve(ffmpegDest)) {
       moveBinary(ffmpegSrc, ffmpegDest);
       if (process.platform !== 'win32') fs.chmodSync(ffmpegDest, 0o755);
@@ -108,7 +119,16 @@ async function main() {
       moveBinary(ffprobeSrc, ffprobeDest);
       if (process.platform !== 'win32') fs.chmodSync(ffprobeDest, 0o755);
     }
-    console.log('\n✅ Success! Binaries are ready.');
+    if (ytDlpSrc && path.resolve(ytDlpSrc) !== path.resolve(ytDlpDest)) {
+      moveBinary(ytDlpSrc, ytDlpDest);
+      if (process.platform !== 'win32') fs.chmodSync(ytDlpDest, 0o755);
+    }
+    if (pipSrc && path.resolve(pipSrc) !== path.resolve(pipDest)) {
+      moveBinary(pipSrc, pipDest);
+      if (process.platform !== 'win32') fs.chmodSync(pipDest, 0o755);
+    }
+
+    console.log('\n✅ Success! Binaries are consolidated in the Scripts/bin directory.');
   } catch (error) {
     console.error(`\n❌ Error: ${error.message}`);
     process.exit(1);
