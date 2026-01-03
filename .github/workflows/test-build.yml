@@ -22,8 +22,8 @@ jobs:
       - name: Checkout Portable Python
         uses: actions/checkout@v4
         with:
-          repository: SudoLocalGhost/python-portable
-          path: python-portable
+          repository: SudoLocalGhost/pyvenv
+          path: pyvenv
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -87,8 +87,8 @@ jobs:
       - name: Checkout Portable Python
         uses: actions/checkout@v4
         with:
-          repository: SudoLocalGhost/python-portable
-          path: python-portable
+          repository: SudoLocalGhost/pyvenv
+          path: pyvenv
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
