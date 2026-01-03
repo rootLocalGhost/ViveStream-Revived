@@ -3,6 +3,6 @@ release
 dist
 .git
 .github
-python-portable
+pyvenv
 temp-build-config.json
 *.log
