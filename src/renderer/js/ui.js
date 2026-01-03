@@ -698,6 +698,7 @@ function initializeMainEventListeners() {
 
     if (e.target.closest('#logo-home-button')) {
       const isPinned = sidebar.classList.toggle('pinned');
+      document.body.classList.toggle('sidebar-pinned', isPinned);
       localStorage.setItem('sidebarPinned', isPinned);
       return;
     }
@@ -729,11 +730,25 @@ function initializeMainEventListeners() {
   });
 }
 
+export function setSidebarAutoExpand(enabled) {
+  if (enabled) {
+    sidebar.classList.add('auto-expand');
+  } else {
+    sidebar.classList.remove('auto-expand');
+  }
+}
+
 export function initializeUI() {
   initializePlatformStyles();
   initializeGlobalSliderLogic();
   if (localStorage.getItem('sidebarPinned') === 'true') {
     sidebar.classList.add('pinned');
+    document.body.classList.add('sidebar-pinned');
   }
+
+  // Initialize auto-expand setting (default to *false*)
+  const autoExpand = localStorage.getItem('sidebarAutoExpand') === 'true';
+  setSidebarAutoExpand(autoExpand);
+
   initializeMainEventListeners();
 }
