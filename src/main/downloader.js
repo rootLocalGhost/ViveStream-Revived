@@ -4,7 +4,6 @@ const fse = require('fs-extra');
 const url = require('url');
 const { parseArtistNames, parseYtDlpError } = require('./utils');
 const { spawnPython, getPythonDetails } = require('./python-core');
-
 class Downloader {
   constructor({
     getSettings,
@@ -28,26 +27,21 @@ class Downloader {
     this.win = win;
     this.resolveFfmpegPath = resolveFfmpegPath;
   }
-
   setWindow(win) {
     this.win = win;
   }
-
   updateSettings(s) {
     this.settings = s;
     this.processQueue();
   }
-
   addToQueue(jobs) {
     this.queue.push(...jobs);
     this.processQueue();
   }
-
   retryDownload(job) {
     this.queue.unshift(job);
     this.processQueue();
   }
-
   processQueue() {
     while (
       this.activeDownloads.size < this.settings.concurrentDownloads &&
@@ -62,7 +56,6 @@ class Downloader {
       });
     }
   }
-
   cancelDownload(videoId) {
     const p = this.activeDownloads.get(videoId);
     if (p) {
@@ -70,7 +63,6 @@ class Downloader {
       this.activeDownloads.delete(videoId);
     }
   }
-
   shutdown() {
     this.queue = [];
     for (const process of this.activeDownloads.values()) {
@@ -78,22 +70,17 @@ class Downloader {
     }
     this.activeDownloads.clear();
   }
-
   emitLog(id, text) {
     if (this.win) {
       if (text.includes('No supported JavaScript runtime')) return;
       this.win.webContents.send('download-log', { id, text: text + '\n' });
     }
   }
-
   async startDownload(job) {
     const { videoInfo } = job;
     const { id } = videoInfo;
-
     this.emitLog(id, `[System]: Initializing download for: ${videoInfo.title}`);
-
     if (!this.activeDownloads.has(id)) return;
-
     this.emitLog(id, `[System]: Resolving FFmpeg...`);
     let resolvedFfmpegPath;
     try {
@@ -109,12 +96,9 @@ class Downloader {
     } catch (e) {
       this.emitLog(id, `[System]: Error resolving FFmpeg: ${e.message}`);
     }
-
     if (!this.activeDownloads.has(id)) return;
-
     const requestUrl =
       videoInfo.webpage_url || `https://www.youtube.com/watch?v=${id}`;
-
     let args = [
       '-m',
       'yt_dlp',
@@ -136,11 +120,10 @@ class Downloader {
       '--compat-options',
       'no-youtube-unavailable-videos',
     ];
-
     if (resolvedFfmpegPath) {
-      args.push('--ffmpeg-location', path.dirname(resolvedFfmpegPath));
+      // Pass full executable path to prevent ambiguity on Windows (e.g. searching 'Scripts' vs 'Scripts/ffmpeg.exe')
+      args.push('--ffmpeg-location', resolvedFfmpegPath);
     }
-
     if (job.downloadType === 'video') {
       if (resolvedFfmpegPath) {
         const qualityFilter =
@@ -154,7 +137,6 @@ class Downloader {
         );
         args.push('-f', 'best[ext=mp4]');
       }
-
       if (job.downloadSubs) {
         args.push('--write-subs', '--sub-langs', 'en.*,-live_chat');
         if (this.settings.downloadAutoSubs) args.push('--write-auto-subs');
@@ -177,7 +159,6 @@ class Downloader {
         args.push('-f', 'bestaudio');
       }
     }
-
     if (job.liveFromStart) args.push('--live-from-start');
     if (this.settings.removeSponsors && resolvedFfmpegPath)
       args.push('--sponsorblock-remove', 'all');
@@ -186,25 +167,19 @@ class Downloader {
         '--concurrent-fragments',
         this.settings.concurrentFragments.toString()
       );
-
     const browserArg = this.BrowserDiscovery.resolveBrowser(
       this.settings.cookieBrowser
     );
     if (browserArg) {
       args.push('--cookies-from-browser', browserArg);
     }
-
     if (this.settings.speedLimit) args.push('-r', this.settings.speedLimit);
-
     const proc = spawnPython(args);
     this.activeDownloads.set(id, proc);
-
     let stderrOutput = '';
     let stdoutOutput = '';
-
     let stallTimeout;
     const STALL_LIMIT = 120000;
-
     const resetStallTimer = () => {
       clearTimeout(stallTimeout);
       stallTimeout = setTimeout(() => {
@@ -219,7 +194,6 @@ class Downloader {
       }, STALL_LIMIT);
     };
     resetStallTimer();
-
     proc.on('error', (err) => {
       clearTimeout(stallTimeout);
       console.error(`[Downloader] Spawn Error (${id}):`, err);
@@ -230,7 +204,6 @@ class Downloader {
       }
       stderrOutput += `\n${errorMsg}`;
       this.emitLog(id, errorMsg);
-
       if (this.activeDownloads.get(id) === proc) {
         this.activeDownloads.delete(id);
       }
@@ -244,14 +217,11 @@ class Downloader {
       }
       this.processQueue();
     });
-
     proc.stdout.on('data', (data) => {
       resetStallTimer();
       const str = data.toString();
       stdoutOutput += str;
-
       if (str.trim()) this.emitLog(id, str);
-
       const m = str.match(
         /\[download\]\s+(\d+\.?\d*)%\s+of\s+~?\s*([\d.]+\w+)\s+at\s+([\d.]+\w+\/s)\s+ETA\s+([\d:]+)/
       );
@@ -265,24 +235,20 @@ class Downloader {
         });
       }
     });
-
     proc.stderr.on('data', (data) => {
       resetStallTimer();
       const str = data.toString();
       stderrOutput += str;
       this.emitLog(id, str);
     });
-
     proc.on('close', async (code) => {
       clearTimeout(stallTimeout);
       if (this.activeDownloads.get(id) === proc) {
         this.activeDownloads.delete(id);
       }
-
       const fullLog = `CMD: ${args.join(
         ' '
       )}\n\nSTDOUT:\n${stdoutOutput}\n\nSTDERR:\n${stderrOutput}`;
-
       if (code === 0) {
         await this.postProcess(videoInfo, job, fullLog);
       } else {
@@ -291,7 +257,6 @@ class Downloader {
         console.warn(
           `[Downloader] Job ${id} failed. Code: ${code}. Msg: ${errorMsg}`
         );
-
         await this.db.addToHistory({
           url: videoInfo.webpage_url,
           title: videoInfo.title,
@@ -299,7 +264,6 @@ class Downloader {
           thumbnail: videoInfo.thumbnail,
           status: 'failed',
         });
-
         if (this.win) {
           this.win.webContents.send('download-error', {
             id: id,
@@ -312,30 +276,24 @@ class Downloader {
       this.processQueue();
     });
   }
-
   async postProcess(videoInfo, job, fullLog) {
     try {
       const files = await fs.promises.readdir(this.videoPath);
       let infoFile = files.find(
         (f) => f.startsWith(videoInfo.id + '.') && f.endsWith('.info.json')
       );
-
       if (!infoFile) {
         infoFile = files.find(
           (f) => f.startsWith(videoInfo.id) && f.endsWith('.info.json')
         );
       }
-
       if (!infoFile)
         throw new Error(`Could not find metadata file for ${videoInfo.id}.`);
-
       const infoJsonPath = path.join(this.videoPath, infoFile);
       const infoData = await fs.promises.readFile(infoJsonPath, 'utf-8');
       const info = JSON.parse(infoData);
       await fs.promises.unlink(infoJsonPath);
-
       const realId = info.id;
-
       const mediaFile = files.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
@@ -345,17 +303,14 @@ class Downloader {
           !f.endsWith('.webp') &&
           !f.endsWith('.vtt')
       );
-
       if (!mediaFile) throw new Error('Media file not found after download.');
       const mediaFilePath = path.join(this.videoPath, mediaFile);
-
       let finalCoverPath = null;
       const thumbFile = files.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
           (f.endsWith('.jpg') || f.endsWith('.webp'))
       );
-
       if (thumbFile) {
         finalCoverPath = path.join(this.coverPath, `${realId}.jpg`);
         await fse.move(path.join(this.videoPath, thumbFile), finalCoverPath, {
@@ -365,7 +320,6 @@ class Downloader {
       const finalCoverUri = finalCoverPath
         ? url.pathToFileURL(finalCoverPath).href
         : null;
-
       let subFileUri = null;
       const subFile = files.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.vtt')
@@ -377,16 +331,13 @@ class Downloader {
         });
         subFileUri = url.pathToFileURL(destSub).href;
       }
-
       const descFile = files.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.description')
       );
       if (descFile)
         await fs.promises.unlink(path.join(this.videoPath, descFile));
-
       const artistString = info.artist || info.creator || info.uploader;
       const artistNames = parseArtistNames(artistString);
-
       const videoData = {
         id: info.id,
         title: info.title,
@@ -405,17 +356,13 @@ class Downloader {
         isFavorite: false,
         source: 'youtube',
       };
-
       await this.db.addOrUpdateVideo(videoData);
-
       for (const name of artistNames) {
         const artist = await this.db.findOrCreateArtist(name, finalCoverUri);
         if (artist) await this.db.linkVideoToArtist(info.id, artist.id);
       }
-
       if (job.playlistId)
         await this.db.addVideoToPlaylist(job.playlistId, videoData.id);
-
       await this.db.addToHistory({
         url: info.webpage_url,
         title: info.title,
@@ -423,7 +370,6 @@ class Downloader {
         thumbnail: finalCoverUri,
         status: 'success',
       });
-
       if (this.win)
         this.win.webContents.send('download-complete', {
           id: videoInfo.id,
@@ -442,5 +388,4 @@ class Downloader {
     }
   }
 }
-
 module.exports = Downloader;
