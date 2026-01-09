@@ -310,14 +310,9 @@ input[type='range']:hover::-webkit-slider-thumb {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  width: var(--sidebar-collapsed-width);
   will-change: width;
   transition: width 0.4s var(--transition-bounce);
   overflow: hidden; /* Hide logo text when collapsed */
-}
-
-body.sidebar-pinned .header-left {
-  width: var(--sidebar-expanded-width);
 }
 
 .sidebar.collapsed ~ .content-wrapper .header-left {
@@ -516,6 +511,7 @@ body.sidebar-pinned .header-left {
   width: var(--sidebar-collapsed-width);
   padding: 0 4px;
   background-color: var(--primary-background);
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -525,16 +521,17 @@ body.sidebar-pinned .header-left {
   overflow: hidden;
 }
 
-/* Only expand on hover if auto-expand class is present */
 .sidebar.auto-expand:hover,
 .sidebar.pinned {
+  margin: 0;
   width: var(--sidebar-expanded-width);
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+  background: #000000cc;
+  border: 1px solid var(--glass-border);
 }
 
 .sidebar-nav {
   list-style: none;
-  margin-top: 10px;
 }
 
 .sidebar-nav-bottom {

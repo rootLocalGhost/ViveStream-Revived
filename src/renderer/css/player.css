@@ -318,7 +318,6 @@ video::cue {
 }
 
 .video-description-box {
-  background-color: var(--secondary-background);
   border-radius: 12px;
   padding: 16px;
   margin-top: 24px;
@@ -329,7 +328,7 @@ video::cue {
 }
 
 .video-description-box:hover {
-  background-color: var(--button-hover-bg);
+  background-color: var(--secondary-background);
 }
 
 .description-content {
@@ -399,7 +398,7 @@ video::cue {
 }
 
 .up-next-item:hover {
-  background-color: var(--button-hover-bg);
+  background-color: var(--secondary-background);
   transform: translateX(4px);
 }
 
