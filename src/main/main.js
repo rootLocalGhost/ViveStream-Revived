@@ -106,7 +106,7 @@ if (!fs.existsSync(settingsPath)) saveSettings(defaultSettings);
 
 function startFfmpegResolution() {
   const resolveTask = new Promise(async (resolve) => {
-    const { binDir } = getPythonDetails();
+    const { pythonPath, binDir } = getPythonDetails();
     console.log(`[FFmpeg] Resolution start. Python Bin: ${binDir}`);
 
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
@@ -126,12 +126,153 @@ function startFfmpegResolution() {
         resolve(candidate);
         return;
       }
-    }
 
-    console.warn('[FFmpeg] FATAL: Could not find ffmpeg binary.');
-    resolve(null);
+      // FFmpeg not found, try to install it automatically
+      console.log('[FFmpeg] Not found. Attempting automatic installation...');
+      if (!pythonPath) {
+        console.error('[FFmpeg] Cannot install: Python not available.');
+        resolve(null);
+        return;
+      }
+
+      try {
+        // Install static-ffmpeg package
+        await new Promise((resolveInstall, rejectInstall) => {
+          console.log('[FFmpeg] Installing static-ffmpeg package...');
+          const installProc = spawnPython([
+            '-m',
+            'pip',
+            'install',
+            '-U',
+            'static-ffmpeg',
+          ]);
+
+          installProc.stdout.on('data', (data) => {
+            console.log(`[FFmpeg Install] ${data.toString().trim()}`);
+          });
+
+          installProc.stderr.on('data', (data) => {
+            console.log(`[FFmpeg Install] ${data.toString().trim()}`);
+          });
+
+          installProc.on('close', (code) => {
+            if (code === 0) {
+              console.log('[FFmpeg] static-ffmpeg package installed successfully.');
+              resolveInstall();
+            } else {
+              rejectInstall(
+                new Error(`pip install failed with code ${code}`)
+              );
+            }
+          });
+
+          installProc.on('error', (err) => {
+            rejectInstall(err);
+          });
+        });
+
+        // Hydrate FFmpeg binaries
+        await new Promise((resolveHydrate, rejectHydrate) => {
+          console.log('[FFmpeg] Hydrating FFmpeg binaries...');
+          const hydrateProc = spawnPython([
+            '-c',
+            'import static_ffmpeg; static_ffmpeg.add_paths()',
+          ]);
+
+          hydrateProc.on('close', (code) => {
+            if (code === 0) {
+              console.log('[FFmpeg] FFmpeg binaries hydrated successfully.');
+              resolveHydrate();
+            } else {
+              rejectHydrate(
+                new Error(`FFmpeg hydration failed with code ${code}`)
+              );
+            }
+          });
+
+          hydrateProc.on('error', (err) => {
+            rejectHydrate(err);
+          });
+        });
+
+        // Check if ffmpeg is now available
+        if (fs.existsSync(candidate)) {
+          console.log('[FFmpeg] Successfully installed at:', candidate);
+          if (process.platform !== 'win32') {
+            try {
+              fs.chmodSync(candidate, 0o755);
+            } catch (e) {
+              console.error(`[FFmpeg] Failed to chmod: ${e.message}`);
+            }
+          }
+          resolvedFfmpegPath = candidate;
+          resolve(candidate);
+          return;
+        }
+
+        // If still not found, search recursively
+        console.log('[FFmpeg] Searching recursively for ffmpeg binary...');
+        const searchRoot = path.dirname(path.dirname(binDir));
+        const foundPath = findFileRecursive(searchRoot, targetName);
+        
+        if (foundPath) {
+          console.log('[FFmpeg] Found at:', foundPath);
+          // Move to binDir for easier access
+          try {
+            fs.copyFileSync(foundPath, candidate);
+            if (process.platform !== 'win32') {
+              fs.chmodSync(candidate, 0o755);
+            }
+            console.log('[FFmpeg] Moved to:', candidate);
+            resolvedFfmpegPath = candidate;
+            resolve(candidate);
+            return;
+          } catch (e) {
+            console.error(`[FFmpeg] Failed to move binary: ${e.message}`);
+            // Use the found path as-is
+            resolvedFfmpegPath = foundPath;
+            resolve(foundPath);
+            return;
+          }
+        }
+
+        console.error('[FFmpeg] Still not found after installation attempt.');
+        resolve(null);
+      } catch (err) {
+        console.error(`[FFmpeg] Installation failed: ${err.message}`);
+        resolve(null);
+      }
+    } else {
+      console.warn('[FFmpeg] FATAL: Could not find Python bin directory.');
+      resolve(null);
+    }
   });
   return resolveTask;
+}
+
+function findFileRecursive(dir, filename) {
+  if (!fs.existsSync(dir)) return null;
+  try {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const fullPath = path.join(dir, file);
+      try {
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          const found = findFileRecursive(fullPath, filename);
+          if (found) return found;
+        } else if (file.toLowerCase() === filename.toLowerCase()) {
+          return fullPath;
+        }
+      } catch (e) {
+        // Skip files we can't access
+        continue;
+      }
+    }
+  } catch (e) {
+    console.error(`[FFmpeg] Error searching directory ${dir}: ${e.message}`);
+  }
+  return null;
 }
 
 const gotTheLock = app.requestSingleInstanceLock();
