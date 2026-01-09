@@ -212,6 +212,7 @@ function startFfmpegResolution() {
 
         // If still not found, search recursively
         console.log('[FFmpeg] Searching recursively for ffmpeg binary...');
+        // Search in the Python environment root directory (two levels up from bin/Scripts)
         const searchRoot = path.dirname(path.dirname(binDir));
         const foundPath = findFileRecursive(searchRoot, targetName);
         
@@ -252,6 +253,7 @@ function startFfmpegResolution() {
 
 function findFileRecursive(dir, filename) {
   if (!fs.existsSync(dir)) return null;
+  const lowerFilename = filename.toLowerCase();
   try {
     const files = fs.readdirSync(dir);
     for (const file of files) {
@@ -261,7 +263,7 @@ function findFileRecursive(dir, filename) {
         if (stat.isDirectory()) {
           const found = findFileRecursive(fullPath, filename);
           if (found) return found;
-        } else if (file.toLowerCase() === filename.toLowerCase()) {
+        } else if (file.toLowerCase() === lowerFilename) {
           return fullPath;
         }
       } catch (e) {
