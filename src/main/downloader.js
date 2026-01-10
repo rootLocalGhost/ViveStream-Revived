@@ -122,7 +122,25 @@ class Downloader {
     ];
     if (resolvedFfmpegPath) {
       // Pass full executable path to prevent ambiguity on Windows (e.g. searching 'Scripts' vs 'Scripts/ffmpeg.exe')
-      args.push('--ffmpeg-location', resolvedFfmpegPath);
+      let finalFfmpegPath = resolvedFfmpegPath;
+      // Defensive check: If path is a directory on Windows, append ffmpeg.exe
+      // This handles cases where resolution might return the bin directory
+      if (
+        process.platform === 'win32' &&
+        !finalFfmpegPath.toLowerCase().endsWith('.exe')
+      ) {
+        try {
+          if (
+            fs.existsSync(finalFfmpegPath) &&
+            fs.statSync(finalFfmpegPath).isDirectory()
+          ) {
+            finalFfmpegPath = path.join(finalFfmpegPath, 'ffmpeg.exe');
+          }
+        } catch (e) {
+          // Ignore error, rely on original path
+        }
+      }
+      args.push('--ffmpeg-location', finalFfmpegPath);
     }
     if (job.downloadType === 'video') {
       if (resolvedFfmpegPath) {

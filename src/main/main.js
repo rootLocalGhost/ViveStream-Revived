@@ -113,7 +113,7 @@ function startFfmpegResolution() {
 
     if (binDir) {
       const candidate = path.join(binDir, targetName);
-      if (fs.existsSync(candidate)) {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         console.log('[FFmpeg] Found in Python bin/Scripts:', candidate);
         if (process.platform !== 'win32') {
           try {
@@ -196,7 +196,7 @@ function startFfmpegResolution() {
         });
 
         // Check if ffmpeg is now available
-        if (fs.existsSync(candidate)) {
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
           console.log('[FFmpeg] Successfully installed at:', candidate);
           if (process.platform !== 'win32') {
             try {
