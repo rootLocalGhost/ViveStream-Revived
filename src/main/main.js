@@ -112,8 +112,10 @@ function startFfmpegResolution() {
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
 
     if (binDir) {
-      const candidate = path.join(binDir, targetName);
-      if (fs.existsSync(candidate)) {
+      let candidate = path.join(binDir, targetName);
+      console.log(`[FFmpeg] Candidate path: ${candidate}`);
+
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         console.log('[FFmpeg] Found in Python bin/Scripts:', candidate);
         if (process.platform !== 'win32') {
           try {

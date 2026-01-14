@@ -121,8 +121,37 @@ class Downloader {
       'no-youtube-unavailable-videos',
     ];
     if (resolvedFfmpegPath) {
+      // Ensure we are passing a file path, not a directory
+      let validFfmpegPath = resolvedFfmpegPath;
+      try {
+        if (fs.existsSync(resolvedFfmpegPath)) {
+          const stat = fs.statSync(resolvedFfmpegPath);
+          if (stat.isDirectory()) {
+            const targetName =
+              process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+            const fixedPath = path.join(resolvedFfmpegPath, targetName);
+            if (fs.existsSync(fixedPath) && fs.statSync(fixedPath).isFile()) {
+              console.warn(
+                `[Downloader] Corrected FFmpeg path from directory to file: ${fixedPath}`
+              );
+              validFfmpegPath = fixedPath;
+              this.emitLog(
+                id,
+                `[System] Corrected FFmpeg path to: ${validFfmpegPath}`
+              );
+            } else {
+              console.warn(
+                `[Downloader] FFmpeg path is a directory but binary not found inside: ${resolvedFfmpegPath}`
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Downloader] Error checking FFmpeg path: ${e.message}`);
+      }
+
       // Pass full executable path to prevent ambiguity on Windows (e.g. searching 'Scripts' vs 'Scripts/ffmpeg.exe')
-      args.push('--ffmpeg-location', resolvedFfmpegPath);
+      args.push('--ffmpeg-location', validFfmpegPath);
     }
     if (job.downloadType === 'video') {
       if (resolvedFfmpegPath) {
