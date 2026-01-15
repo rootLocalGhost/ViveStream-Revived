@@ -133,15 +133,36 @@ class Downloader {
           // Try appending ffmpeg.exe
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
           const tryExe = validFfmpegPath + '.exe';
-          const staticWinPath = path.join(
-            path.dirname(validFfmpegPath),
-            'Lib',
-            'site-packages',
-            'static_ffmpeg',
-            'bin',
-            'win32',
-            'ffmpeg.exe'
-          );
+          const staticWinPath =
+            [
+              path.join(
+                path.dirname(validFfmpegPath),
+                'Lib',
+                'site-packages',
+                'static_ffmpeg',
+                'bin',
+                'win32',
+                'ffmpeg.exe'
+              ),
+              path.join(
+                path.dirname(validFfmpegPath),
+                'lib',
+                'site-packages',
+                'static_ffmpeg',
+                'bin',
+                'win32',
+                'ffmpeg.exe'
+              ),
+              path.join(
+                path.dirname(validFfmpegPath),
+                'static_ffmpeg',
+                'bin',
+                'win32',
+                'ffmpeg.exe'
+              ),
+            ].find(
+              (p) => fs.existsSync(p) && fs.statSync(p).isFile()
+            ) || null;
           if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
             validFfmpegPath = tryPath;
             this.emitLog(
@@ -157,10 +178,7 @@ class Downloader {
               id,
               `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`
             );
-          } else if (
-            fs.existsSync(staticWinPath) &&
-            fs.statSync(staticWinPath).isFile()
-          ) {
+          } else if (staticWinPath) {
             validFfmpegPath = staticWinPath;
             this.emitLog(
               id,
