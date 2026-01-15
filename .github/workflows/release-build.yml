@@ -23,11 +23,6 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-      - name: Checkout Portable Python
-        uses: actions/checkout@v4
-        with:
-          repository: SudoLocalGhost/pyvenv
-          path: pyvenv
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -49,10 +44,6 @@ jobs:
           npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
         run: npm ci
-      - name: Hydrate Python Environment
-        run: npm run env:update
-      - name: Clean Environment
-        run: npm run env:clean
       - name: Verify Version
         shell: bash
         id: version_check
@@ -88,11 +79,6 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-      - name: Checkout Portable Python
-        uses: actions/checkout@v4
-        with:
-          repository: SudoLocalGhost/pyvenv
-          path: pyvenv
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -108,10 +94,6 @@ jobs:
           npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
         run: npm ci
-      - name: Hydrate Python Environment
-        run: npm run env:update
-      - name: Clean Environment
-        run: npm run env:clean
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -165,7 +147,7 @@ jobs:
         shell: bash
         run: |
           zip -r release/ViveStream-Source-v${{ needs.build_linux.outputs.version }}.zip . \
-            -x "node_modules/*" "pyvenv/*" ".git/*" "release/*" "*.log" "helpers/large-file-manager.js"
+            -x "node_modules/*" "binaries/*" ".git/*" "release/*" "*.log"
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
