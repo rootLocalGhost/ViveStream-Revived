@@ -4,6 +4,11 @@ const fse = require('fs-extra');
 const url = require('url');
 const { parseArtistNames, parseYtDlpError } = require('./utils');
 const { spawnPython, getPythonDetails } = require('./python-core');
+const STATIC_FFMPEG_REL_PATHS = [
+  'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+  'lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+  'static_ffmpeg/bin/win32/ffmpeg.exe',
+];
 class Downloader {
   constructor({
     getSettings,
@@ -142,11 +147,7 @@ class Downloader {
           const tryExe = validFfmpegPath + '.exe';
           const pythonRoot = path.dirname(validFfmpegPath);
           const staticWinPath =
-            [
-              'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
-              'lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
-              'static_ffmpeg/bin/win32/ffmpeg.exe',
-            ]
+            STATIC_FFMPEG_REL_PATHS
               .map((rel) => path.join(pythonRoot, rel))
               .find((p) => isExecutableFile(p)) || null;
           if (isExecutableFile(tryPath)) {

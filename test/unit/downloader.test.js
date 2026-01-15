@@ -183,7 +183,7 @@ describe('Downloader', () => {
       isFile: () => p === staticPath,
       isDirectory: () => false,
     }));
-
+    const originalResolver = downloader.resolveFfmpegPath;
     downloader.resolveFfmpegPath = async () => scriptsDir;
 
     const job = {
@@ -205,6 +205,7 @@ describe('Downloader', () => {
       expect(ffmpegIndex).toBeGreaterThan(-1);
       expect(args[ffmpegIndex + 1]).toBe(staticPath);
     } finally {
+      downloader.resolveFfmpegPath = originalResolver;
       Object.defineProperty(process, 'platform', originalPlatform);
       fs.existsSync.mockReset();
       fs.statSync.mockReset();
