@@ -1,4 +1,5 @@
 const Downloader = require('../../src/main/downloader');
+const STATIC_FFMPEG_REL_PATHS = Downloader.STATIC_FFMPEG_REL_PATHS;
 const path = require('path');
 const events = require('events');
 const fs = require('fs');
@@ -170,12 +171,7 @@ describe('Downloader', () => {
     );
     const staticPath = path.join(
       path.dirname(scriptsDir),
-      'Lib',
-      'site-packages',
-      'static_ffmpeg',
-      'bin',
-      'win32',
-      'ffmpeg.exe'
+      STATIC_FFMPEG_REL_PATHS[0].replace(/\//g, path.sep)
     );
 
     fs.existsSync.mockImplementation((p) => p === staticPath);
