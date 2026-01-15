@@ -169,9 +169,12 @@ describe('Downloader', () => {
       'python-win-x64',
       'Scripts'
     );
+    const staticRelPath =
+      STATIC_FFMPEG_REL_PATHS.find((p) => p.toLowerCase().includes('lib')) ||
+      STATIC_FFMPEG_REL_PATHS[0];
     const staticPath = path.join(
       path.dirname(scriptsDir),
-      STATIC_FFMPEG_REL_PATHS[0].replace(/\//g, path.sep)
+      staticRelPath.replace(/\//g, path.sep)
     );
 
     fs.existsSync.mockImplementation((p) => p === staticPath);

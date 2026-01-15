@@ -146,7 +146,7 @@ class Downloader {
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
           const tryExe = validFfmpegPath + '.exe';
           const baseDir = path.dirname(validFfmpegPath);
-          const staticWinPath =
+          const staticFfmpegPath =
             STATIC_FFMPEG_REL_PATHS
               .map((rel) => path.join(baseDir, rel))
               .find((p) => isExecutableFile(p)) || null;
@@ -162,8 +162,8 @@ class Downloader {
               id,
               `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`
             );
-          } else if (staticWinPath) {
-            validFfmpegPath = staticWinPath;
+          } else if (staticFfmpegPath) {
+            validFfmpegPath = staticFfmpegPath;
             this.emitLog(
               id,
               `[System] Using static_ffmpeg binary: ${validFfmpegPath}`
