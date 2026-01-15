@@ -20,6 +20,10 @@ ehthumbs.db
 # Specific project ignores
 *.txt
 Release_Notes.md
-*.exe
 coverage/
 *.vivestream-build
+*.exe
+binaries/ffmpeg
+binaries/ffplay
+binaries/ffprobe
+binaries/yt-dlp_linux
