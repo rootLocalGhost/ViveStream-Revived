@@ -123,31 +123,48 @@ class Downloader {
     if (resolvedFfmpegPath) {
       // Ensure we are passing a file path, not a directory
       let validFfmpegPath = resolvedFfmpegPath;
-      try {
-        if (fs.existsSync(resolvedFfmpegPath)) {
-          const stat = fs.statSync(resolvedFfmpegPath);
-          if (stat.isDirectory()) {
-            const targetName =
-              process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-            const fixedPath = path.join(resolvedFfmpegPath, targetName);
-            if (fs.existsSync(fixedPath) && fs.statSync(fixedPath).isFile()) {
-              console.warn(
-                `[Downloader] Corrected FFmpeg path from directory to file: ${fixedPath}`
-              );
-              validFfmpegPath = fixedPath;
-              this.emitLog(
-                id,
-                `[System] Corrected FFmpeg path to: ${validFfmpegPath}`
-              );
-            } else {
-              console.warn(
-                `[Downloader] FFmpeg path is a directory but binary not found inside: ${resolvedFfmpegPath}`
-              );
-            }
-          }
+
+      if (process.platform === 'win32') {
+        // Strict fix for Windows: Ensure path ends with ffmpeg.exe
+        const isExe = validFfmpegPath.toLowerCase().endsWith('ffmpeg.exe');
+
+        if (!isExe) {
+           // If it doesn't end in ffmpeg.exe, assume it's a directory or incomplete path
+           // Try appending ffmpeg.exe
+           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
+           if (fs.existsSync(tryPath)) {
+             validFfmpegPath = tryPath;
+             this.emitLog(id, `[System] Corrected FFmpeg path to binary: ${validFfmpegPath}`);
+           } else {
+             // If checking as directory failed, maybe it was a file without extension? (Unlikely on Windows but safe to check)
+             // Or maybe just try appending .exe?
+             const tryExe = validFfmpegPath + '.exe';
+             if (fs.existsSync(tryExe)) {
+                validFfmpegPath = tryExe;
+                this.emitLog(id, `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`);
+             } else {
+                // If neither worked, we warn but keep original (it might be in PATH but user gave weird input?)
+                // Actually, if input was directory .../Scripts, checking .../Scripts/ffmpeg.exe covers it.
+                this.emitLog(id, `[System] WARNING: FFmpeg path does not end in ffmpeg.exe: ${validFfmpegPath}`);
+             }
+           }
         }
-      } catch (e) {
-        console.error(`[Downloader] Error checking FFmpeg path: ${e.message}`);
+      } else {
+        // Non-Windows logic (keep existing directory check)
+        try {
+            if (fs.existsSync(resolvedFfmpegPath)) {
+            const stat = fs.statSync(resolvedFfmpegPath);
+            if (stat.isDirectory()) {
+                const fixedPath = path.join(resolvedFfmpegPath, 'ffmpeg');
+                if (fs.existsSync(fixedPath) && fs.statSync(fixedPath).isFile()) {
+                    validFfmpegPath = fixedPath;
+                     this.emitLog(id, `[System] Corrected FFmpeg path to: ${validFfmpegPath}`);
+                }
+            }
+            }
+        } catch (e) {
+            console.error(`[Downloader] Error checking FFmpeg path: ${e.message}`);
+        }
       }
 
       // Pass full executable path to prevent ambiguity on Windows (e.g. searching 'Scripts' vs 'Scripts/ffmpeg.exe')
