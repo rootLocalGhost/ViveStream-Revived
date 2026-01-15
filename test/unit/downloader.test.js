@@ -196,17 +196,19 @@ describe('Downloader', () => {
       quality: 'best',
     };
 
-    downloader.addToQueue([job]);
-    await waitTick();
+    try {
+      downloader.addToQueue([job]);
+      await waitTick();
 
-    const args = mockSpawnPython.mock.calls[0][0];
-    const ffmpegIndex = args.indexOf('--ffmpeg-location');
-    expect(ffmpegIndex).toBeGreaterThan(-1);
-    expect(args[ffmpegIndex + 1]).toBe(staticPath);
-
-    Object.defineProperty(process, 'platform', originalPlatform);
-    fs.existsSync.mockReset();
-    fs.statSync.mockReset();
+      const args = mockSpawnPython.mock.calls[0][0];
+      const ffmpegIndex = args.indexOf('--ffmpeg-location');
+      expect(ffmpegIndex).toBeGreaterThan(-1);
+      expect(args[ffmpegIndex + 1]).toBe(staticPath);
+    } finally {
+      Object.defineProperty(process, 'platform', originalPlatform);
+      fs.existsSync.mockReset();
+      fs.statSync.mockReset();
+    }
   });
 
   test('should handle download errors', async () => {

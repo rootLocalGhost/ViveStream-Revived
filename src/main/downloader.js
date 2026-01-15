@@ -140,34 +140,15 @@ class Downloader {
           // Try appending ffmpeg.exe
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
           const tryExe = validFfmpegPath + '.exe';
+          const pythonRoot = path.dirname(validFfmpegPath);
           const staticWinPath =
             [
-              path.join(
-                path.dirname(validFfmpegPath),
-                'Lib',
-                'site-packages',
-                'static_ffmpeg',
-                'bin',
-                'win32',
-                'ffmpeg.exe'
-              ),
-              path.join(
-                path.dirname(validFfmpegPath),
-                'lib',
-                'site-packages',
-                'static_ffmpeg',
-                'bin',
-                'win32',
-                'ffmpeg.exe'
-              ),
-              path.join(
-                path.dirname(validFfmpegPath),
-                'static_ffmpeg',
-                'bin',
-                'win32',
-                'ffmpeg.exe'
-              ),
-            ].find((p) => isExecutableFile(p)) || null;
+              'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+              'lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+              'static_ffmpeg/bin/win32/ffmpeg.exe',
+            ]
+              .map((rel) => path.join(pythonRoot, rel))
+              .find((p) => isExecutableFile(p)) || null;
           if (isExecutableFile(tryPath)) {
             validFfmpegPath = tryPath;
             this.emitLog(
