@@ -1,11 +1,10 @@
 const Downloader = require('../../src/main/downloader');
-const STATIC_FFMPEG_REL_PATHS = Downloader.STATIC_FFMPEG_REL_PATHS;
 const path = require('path');
 const events = require('events');
 const fs = require('fs');
+const child_process = require('child_process');
 
 // Mock dependencies
-const mockSpawnPython = jest.fn();
 const mockGetSettings = jest.fn();
 const mockDb = {
   addOrUpdateVideo: jest.fn(),
@@ -23,10 +22,15 @@ const mockWin = {
   },
 };
 
-// Mock python-core
-jest.mock('../../src/main/python-core', () => ({
-  spawnPython: (...args) => mockSpawnPython(...args),
-  getPythonDetails: () => ({ pythonPath: 'python', binDir: 'bin' }),
+// Mock child_process
+jest.mock('child_process', () => ({
+  spawn: jest.fn(),
+}));
+
+// Mock binaries
+jest.mock('../../src/main/binaries', () => ({
+  getYtDlp: jest.fn().mockReturnValue('/mock/yt-dlp'),
+  getFfmpeg: jest.fn().mockReturnValue('/mock/ffmpeg'),
 }));
 
 // Mock fs and fse
@@ -74,7 +78,15 @@ describe('Downloader', () => {
     mockProcess.kill = jest.fn();
     mockProcess.stdout = new events.EventEmitter();
     mockProcess.stderr = new events.EventEmitter();
-    mockSpawnPython.mockReturnValue(mockProcess);
+    
+    child_process.spawn.mockReturnValue(mockProcess);
+
+    // Mock fs.existsSync for binaries
+    fs.existsSync.mockImplementation((p) => {
+        if (p === '/mock/yt-dlp') return true;
+        if (p === '/mock/ffmpeg') return true;
+        return false;
+    });
 
     downloader = new Downloader({
       getSettings: mockGetSettings,
@@ -84,7 +96,6 @@ describe('Downloader', () => {
       db: mockDb,
       BrowserDiscovery: mockBrowserDiscovery,
       win: mockWin,
-      resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
 
     // Mock fs.promises
@@ -109,7 +120,10 @@ describe('Downloader', () => {
     downloader.addToQueue([job]);
     await waitTick();
 
-    expect(mockSpawnPython).toHaveBeenCalled();
+    expect(child_process.spawn).toHaveBeenCalled();
+    const args = child_process.spawn.mock.calls[0][1];
+    expect(args).toContain(job.videoInfo.webpage_url);
+    
     expect(downloader.activeDownloads.has('123')).toBe(true);
 
     mockProcess.stdout.emit(
@@ -151,67 +165,6 @@ describe('Downloader', () => {
     );
     expect(mockDb.addOrUpdateVideo).toHaveBeenCalled();
     expect(downloader.activeDownloads.has('123')).toBe(false);
-  });
-
-  test('resolves static ffmpeg binary when only Scripts directory is returned on Windows', async () => {
-    const originalPlatform = Object.getOwnPropertyDescriptor(
-      process,
-      'platform'
-    );
-    Object.defineProperty(process, 'platform', {
-      value: 'win32',
-      configurable: true,
-    });
-
-    const scriptsDir = path.join(
-      'C:',
-      'pyvenv',
-      'python-win-x64',
-      'Scripts'
-    );
-    const staticRelPath =
-      'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe';
-    const staticPath = path.join(
-      path.dirname(scriptsDir),
-      staticRelPath.replace(/\//g, path.sep)
-    );
-
-    fs.existsSync.mockImplementation((p) => p === staticPath);
-    fs.statSync.mockImplementation((p) => ({
-      isFile: () => p === staticPath,
-      isDirectory: () => false,
-    }));
-    const originalResolver = downloader.resolveFfmpegPath;
-    downloader.resolveFfmpegPath = async () => scriptsDir;
-
-    const job = {
-      videoInfo: {
-        id: 'win',
-        webpage_url: 'http://win.com',
-        title: 'Win Video',
-      },
-      downloadType: 'video',
-      quality: 'best',
-    };
-
-    try {
-      downloader.addToQueue([job]);
-      await waitTick();
-
-      const args = mockSpawnPython.mock.calls[0][0];
-      const ffmpegIndex = args.indexOf('--ffmpeg-location');
-      expect(ffmpegIndex).toBeGreaterThan(-1);
-      expect(args[ffmpegIndex + 1]).toBe(staticPath);
-    } finally {
-      downloader.resolveFfmpegPath = originalResolver;
-      if (originalPlatform) {
-        Object.defineProperty(process, 'platform', originalPlatform);
-      } else {
-        delete process.platform;
-      }
-      fs.existsSync.mockReset();
-      fs.statSync.mockReset();
-    }
   });
 
   test('should handle download errors', async () => {
@@ -306,7 +259,7 @@ describe('Downloader', () => {
       cookieBrowser: 'none',
     });
 
-    mockSpawnPython.mockClear();
+    child_process.spawn.mockClear();
 
     // Create a fresh instance
     downloader = new Downloader({
@@ -317,10 +270,7 @@ describe('Downloader', () => {
       db: mockDb,
       BrowserDiscovery: mockBrowserDiscovery,
       win: mockWin,
-      resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
-
-    // We must ensure that the fresh instance uses the same global fs.promises mock, which it does.
 
     const jobs = [
       { videoInfo: { id: '1', title: 'V1' }, downloadType: 'video' },
@@ -331,7 +281,7 @@ describe('Downloader', () => {
     downloader.addToQueue(jobs);
     await waitTick();
 
-    expect(mockSpawnPython).toHaveBeenCalledTimes(2);
+    expect(child_process.spawn).toHaveBeenCalledTimes(2);
     expect(downloader.activeDownloads.size).toBe(2);
     expect(downloader.queue.length).toBe(1);
   });
@@ -348,12 +298,19 @@ describe('Downloader Concurrency', () => {
       cookieBrowser: 'none',
     });
 
-    mockSpawnPython.mockImplementation(() => {
+    child_process.spawn.mockImplementation(() => {
       const p = new events.EventEmitter();
       p.kill = jest.fn();
       p.stdout = new events.EventEmitter();
       p.stderr = new events.EventEmitter();
       return p;
+    });
+
+    // Mock fs.existsSync for binaries
+    fs.existsSync.mockImplementation((p) => {
+        if (p === '/mock/yt-dlp') return true;
+        if (p === '/mock/ffmpeg') return true;
+        return false;
     });
 
     downloader = new Downloader({
@@ -364,7 +321,6 @@ describe('Downloader Concurrency', () => {
       db: mockDb,
       BrowserDiscovery: mockBrowserDiscovery,
       win: mockWin,
-      resolveFfmpegPath: async () => '/mock/ffmpeg',
     });
 
     fs.promises = {
