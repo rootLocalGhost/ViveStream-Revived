@@ -206,7 +206,11 @@ describe('Downloader', () => {
       expect(args[ffmpegIndex + 1]).toBe(staticPath);
     } finally {
       downloader.resolveFfmpegPath = originalResolver;
-      Object.defineProperty(process, 'platform', originalPlatform);
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      } else {
+        delete process.platform;
+      }
       fs.existsSync.mockReset();
       fs.statSync.mockReset();
     }

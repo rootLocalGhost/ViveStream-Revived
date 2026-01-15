@@ -145,10 +145,10 @@ class Downloader {
           // Try appending ffmpeg.exe
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
           const tryExe = validFfmpegPath + '.exe';
-          const pythonRoot = path.dirname(validFfmpegPath);
+          const parentDir = path.dirname(validFfmpegPath);
           const staticWinPath =
             STATIC_FFMPEG_REL_PATHS
-              .map((rel) => path.join(pythonRoot, rel))
+              .map((rel) => path.join(parentDir, rel))
               .find((p) => isExecutableFile(p)) || null;
           if (isExecutableFile(tryPath)) {
             validFfmpegPath = tryPath;
