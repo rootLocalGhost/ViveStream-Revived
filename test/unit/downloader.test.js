@@ -1,4 +1,5 @@
 const Downloader = require('../../src/main/downloader');
+const STATIC_FFMPEG_REL_PATHS = Downloader.STATIC_FFMPEG_REL_PATHS;
 const path = require('path');
 const events = require('events');
 const fs = require('fs');
@@ -150,6 +151,67 @@ describe('Downloader', () => {
     );
     expect(mockDb.addOrUpdateVideo).toHaveBeenCalled();
     expect(downloader.activeDownloads.has('123')).toBe(false);
+  });
+
+  test('resolves static ffmpeg binary when only Scripts directory is returned on Windows', async () => {
+    const originalPlatform = Object.getOwnPropertyDescriptor(
+      process,
+      'platform'
+    );
+    Object.defineProperty(process, 'platform', {
+      value: 'win32',
+      configurable: true,
+    });
+
+    const scriptsDir = path.join(
+      'C:',
+      'pyvenv',
+      'python-win-x64',
+      'Scripts'
+    );
+    const staticRelPath =
+      'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe';
+    const staticPath = path.join(
+      path.dirname(scriptsDir),
+      staticRelPath.replace(/\//g, path.sep)
+    );
+
+    fs.existsSync.mockImplementation((p) => p === staticPath);
+    fs.statSync.mockImplementation((p) => ({
+      isFile: () => p === staticPath,
+      isDirectory: () => false,
+    }));
+    const originalResolver = downloader.resolveFfmpegPath;
+    downloader.resolveFfmpegPath = async () => scriptsDir;
+
+    const job = {
+      videoInfo: {
+        id: 'win',
+        webpage_url: 'http://win.com',
+        title: 'Win Video',
+      },
+      downloadType: 'video',
+      quality: 'best',
+    };
+
+    try {
+      downloader.addToQueue([job]);
+      await waitTick();
+
+      const args = mockSpawnPython.mock.calls[0][0];
+      const ffmpegIndex = args.indexOf('--ffmpeg-location');
+      expect(ffmpegIndex).toBeGreaterThan(-1);
+      expect(args[ffmpegIndex + 1]).toBe(staticPath);
+    } finally {
+      downloader.resolveFfmpegPath = originalResolver;
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      } else {
+        delete process.platform;
+      }
+      fs.existsSync.mockReset();
+      fs.statSync.mockReset();
+    }
   });
 
   test('should handle download errors', async () => {

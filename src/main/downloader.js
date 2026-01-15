@@ -4,6 +4,11 @@ const fse = require('fs-extra');
 const url = require('url');
 const { parseArtistNames, parseYtDlpError } = require('./utils');
 const { spawnPython, getPythonDetails } = require('./python-core');
+const STATIC_FFMPEG_REL_PATHS = [
+  'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+  'lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
+  'static_ffmpeg/bin/win32/ffmpeg.exe',
+];
 class Downloader {
   constructor({
     getSettings,
@@ -129,25 +134,52 @@ class Downloader {
         const isExe = validFfmpegPath.toLowerCase().endsWith('ffmpeg.exe');
 
         if (!isExe) {
-           // If it doesn't end in ffmpeg.exe, assume it's a directory or incomplete path
-           // Try appending ffmpeg.exe
-           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
-           if (fs.existsSync(tryPath)) {
-             validFfmpegPath = tryPath;
-             this.emitLog(id, `[System] Corrected FFmpeg path to binary: ${validFfmpegPath}`);
-           } else {
-             // If checking as directory failed, maybe it was a file without extension? (Unlikely on Windows but safe to check)
-             // Or maybe just try appending .exe?
-             const tryExe = validFfmpegPath + '.exe';
-             if (fs.existsSync(tryExe)) {
-                validFfmpegPath = tryExe;
-                this.emitLog(id, `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`);
-             } else {
-                // If neither worked, we warn but keep original (it might be in PATH but user gave weird input?)
-                // Actually, if input was directory .../Scripts, checking .../Scripts/ffmpeg.exe covers it.
-                this.emitLog(id, `[System] WARNING: FFmpeg path does not end in ffmpeg.exe: ${validFfmpegPath}`);
-             }
-           }
+          const isExecutableFile = (p) => {
+            try {
+              return fs.existsSync(p) && fs.statSync(p).isFile();
+            } catch {
+              return false;
+            }
+          };
+          // If it doesn't end in ffmpeg.exe, assume it's a directory or incomplete path
+          // Try appending ffmpeg.exe
+          const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
+          const tryExe = validFfmpegPath + '.exe';
+          const baseDir = path.dirname(validFfmpegPath);
+          let staticFfmpegPath = null;
+          for (const rel of STATIC_FFMPEG_REL_PATHS) {
+            const candidate = path.join(baseDir, rel);
+            if (isExecutableFile(candidate)) {
+              staticFfmpegPath = candidate;
+              break;
+            }
+          }
+          if (isExecutableFile(tryPath)) {
+            validFfmpegPath = tryPath;
+            this.emitLog(
+              id,
+              `[System] Corrected FFmpeg path to binary: ${validFfmpegPath}`
+            );
+          } else if (isExecutableFile(tryExe)) {
+            validFfmpegPath = tryExe;
+            this.emitLog(
+              id,
+              `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`
+            );
+          } else if (staticFfmpegPath) {
+            validFfmpegPath = staticFfmpegPath;
+            this.emitLog(
+              id,
+              `[System] Using static_ffmpeg binary: ${validFfmpegPath}`
+            );
+          } else {
+            // If neither worked, we warn but keep original (it might be in PATH but user gave weird input?)
+            // Actually, if input was directory .../Scripts, checking .../Scripts/ffmpeg.exe covers it.
+            this.emitLog(
+              id,
+              `[System] WARNING: FFmpeg path does not end in ffmpeg.exe: ${validFfmpegPath}`
+            );
+          }
         }
       } else {
         // Non-Windows logic (keep existing directory check)
@@ -434,4 +466,5 @@ class Downloader {
     }
   }
 }
+Downloader.STATIC_FFMPEG_REL_PATHS = STATIC_FFMPEG_REL_PATHS;
 module.exports = Downloader;
