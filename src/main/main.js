@@ -112,8 +112,10 @@ function startFfmpegResolution() {
     const targetName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
 
     if (binDir) {
-      const candidate = path.join(binDir, targetName);
-      if (fs.existsSync(candidate)) {
+      let candidate = path.join(binDir, targetName);
+      console.log(`[FFmpeg] Candidate path: ${candidate}`);
+
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         console.log('[FFmpeg] Found in Python bin/Scripts:', candidate);
         if (process.platform !== 'win32') {
           try {
@@ -125,6 +127,18 @@ function startFfmpegResolution() {
         resolvedFfmpegPath = candidate;
         resolve(candidate);
         return;
+      }
+
+      // Double-check if we have the directory but not the file (common issue)
+      if (fs.existsSync(binDir) && fs.statSync(binDir).isDirectory()) {
+         const potential = path.join(binDir, targetName);
+         if (fs.existsSync(potential) && fs.statSync(potential).isFile()) {
+            console.log('[FFmpeg] Found via directory re-check:', potential);
+            candidate = potential;
+            resolvedFfmpegPath = candidate;
+            resolve(candidate);
+            return;
+         }
       }
 
       // FFmpeg not found, try to install it automatically
