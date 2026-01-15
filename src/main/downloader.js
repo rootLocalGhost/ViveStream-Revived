@@ -146,10 +146,14 @@ class Downloader {
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
           const tryExe = validFfmpegPath + '.exe';
           const baseDir = path.dirname(validFfmpegPath);
-          const staticFfmpegPath =
-            STATIC_FFMPEG_REL_PATHS
-              .map((rel) => path.join(baseDir, rel))
-              .find((p) => isExecutableFile(p)) || null;
+          let staticFfmpegPath = null;
+          for (const rel of STATIC_FFMPEG_REL_PATHS) {
+            const candidate = path.join(baseDir, rel);
+            if (isExecutableFile(candidate)) {
+              staticFfmpegPath = candidate;
+              break;
+            }
+          }
           if (isExecutableFile(tryPath)) {
             validFfmpegPath = tryPath;
             this.emitLog(

@@ -170,8 +170,7 @@ describe('Downloader', () => {
       'Scripts'
     );
     const staticRelPath =
-      STATIC_FFMPEG_REL_PATHS.find((p) => p.toLowerCase().includes('lib')) ||
-      STATIC_FFMPEG_REL_PATHS[0];
+      'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe';
     const staticPath = path.join(
       path.dirname(scriptsDir),
       staticRelPath.replace(/\//g, path.sep)
