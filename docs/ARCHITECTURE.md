@@ -8,7 +8,9 @@ ViveStream Revived is an Electron-based application that follows a standard mult
 
 1. **Main Process (Node.js)**: Controls the application lifecycle, manages the database, performs file operations, and spawns child processes for heavy lifting (downloads, conversions).
 2. **Renderer Process (Plain JavaScript)**: Handles the user interface. It is sandboxed and communicates with the Main Process strictly via the `ContextBridge`.
-3. **Child Processes**: External binaries (Python/yt-dlp, FFmpeg) managed by the Main Process.
+3. **Child Processes**: External binaries (yt-dlp, FFmpeg) are managed directly by the Main Process.
+   - **Binaries**: Located in `binaries/` (dev) or `resources/binaries/` (prod).
+   - **Execution**: The Main Process spawns these executables directly using Node.js `child_process`.
 
 ## Directory Structure
 
@@ -96,7 +98,7 @@ A unique feature of this project is how it handles dependencies like `ffmpeg` an
 
 We use a custom wrapper around `electron-builder` (`helpers/builder.js`) to handle complex cross-platform requirements:
 
-- **Windows**: Injects a portable Python environment (`pyvenv/`) so users don't need Python installed.
+- **Windows/Linux**: Bundles standalone executables (`binaries/`) so users don't need to install FFmpeg or Python manually.
 - **Linux**: Supports AppImage, Deb, RPM, Snap.
 - **macOS**: Handles DMG creation.
 
