@@ -2,9 +2,8 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const rimrafPkg = require('rimraf');
-const rimraf = rimrafPkg.rimraf || rimrafPkg;
-const rimrafSync = rimrafPkg.rimrafSync || rimrafPkg.sync;
 process.env.NODE_NO_WARNINGS = '1';
+
 const colors = {
   cyan: '\x1b[36m',
   green: '\x1b[32m',
@@ -13,21 +12,27 @@ const colors = {
   gray: '\x1b[90m',
   reset: '\x1b[0m',
 };
+
 const IS_DEBUG = process.argv.includes('--debug');
+
 function toPosix(p) {
   return p.split(path.sep).join(path.posix.sep);
 }
+
 function log(step, message) {
   if (IS_DEBUG) {
     console.log(`${colors.cyan}[${step}]${colors.reset} ${message}`);
   }
 }
+
 function logAlways(message) {
   console.log(message);
 }
+
 function parsePublish() {
   return process.argv.includes('--publish');
 }
+
 function parseTargets() {
   const args = process.argv.slice(2);
   let targets = [];
@@ -43,34 +48,33 @@ function parseTargets() {
   });
   return targets;
 }
+
 function getPlatformConfig() {
   const targets = parseTargets();
   const args = process.argv;
   let platform = process.platform;
   if (args.includes('--win')) platform = 'win32';
   else if (args.includes('--linux')) platform = 'linux';
+
   switch (platform) {
     case 'win32':
       return {
         id: 'win',
         name: 'Windows',
-        pythonSource: 'pyvenv/python-win-x64',
         cliFlag: '--win',
         target: targets.length > 0 ? targets : ['nsis', 'msi'],
-        excludePatterns: ['**/bin/linux/**'],
+        binaryFilter: ['**/*.exe', '**/*.js'],
       };
     case 'linux':
-      const gnuPath = 'pyvenv/python-linux-gnu';
       return {
         id: 'linux',
         name: 'Linux',
-        pythonSource: gnuPath,
         cliFlag: '--linux',
         target:
           targets.length > 0
             ? targets
             : ['AppImage', 'deb', 'rpm', 'snap', 'tar.gz'],
-        excludePatterns: ['**/bin/win32/**'],
+        binaryFilter: ['!**/*.exe', '**/*'],
       };
     default:
       throw new Error(
@@ -78,6 +82,7 @@ function getPlatformConfig() {
       );
   }
 }
+
 async function executeCommand(command, args, cwd) {
   return new Promise((resolve, reject) => {
     const cmd =
@@ -101,6 +106,7 @@ async function executeCommand(command, args, cwd) {
     });
   });
 }
+
 async function packSourceCode(rootDir, releaseDir) {
   logAlways(`${colors.cyan}📦 Packaging Source Code...${colors.reset}`);
   const version = require(path.join(rootDir, 'package.json')).version;
@@ -110,13 +116,13 @@ async function packSourceCode(rootDir, releaseDir) {
   try {
     const exclude = [
       'node_modules/*',
-      'pyvenv/*',
+      'binaries/*',
       '.git/*',
       'release/*',
       '*.log',
       'helpers/large-file-manager.js',
     ]
-      .map((x) => `-x "${x}"`)
+      .map((x) => `-x "${x}"`) // Corrected escaping for quotes within the map function
       .join(' ');
     await executeCommand(`zip -r "${outputPath}" . ${exclude}`, [], rootDir);
     logAlways(`   ${colors.green}✔ Created ${zipName}${colors.reset}`);
@@ -126,6 +132,7 @@ async function packSourceCode(rootDir, releaseDir) {
     );
   }
 }
+
 function cleanSpecificTargets(releaseDir, targets) {
   if (!fs.existsSync(releaseDir)) return;
   const extMap = {
@@ -161,6 +168,7 @@ function cleanSpecificTargets(releaseDir, targets) {
     );
   }
 }
+
 function cleanUnwantedFiles(dirPath) {
   if (!fs.existsSync(dirPath)) return;
   const files = fs.readdirSync(dirPath);
@@ -188,64 +196,53 @@ function cleanUnwantedFiles(dirPath) {
     }
   });
 }
+
 async function runBuild() {
   const rootDir = path.join(__dirname, '..');
   const releaseDir = path.join(rootDir, 'release');
   const tempConfigPath = path.join(rootDir, 'temp-build-config.json');
   const shouldPublish = parsePublish();
   const targets = parseTargets();
-  const args = process.argv;
+  
   if (targets.includes('source')) {
     await packSourceCode(rootDir, releaseDir);
     if (targets.length === 1) return;
   }
+
   const platformConfig = getPlatformConfig();
   platformConfig.target = platformConfig.target.filter((t) => t !== 'source');
   if (platformConfig.target.length === 0) return;
+
   logAlways(`${colors.cyan}=== ViveStream Custom Builder ===${colors.reset}`);
   logAlways(
     `   Target: ${colors.yellow}${platformConfig.target.join(', ')}${colors.reset} | Debug: ${IS_DEBUG ? 'ON' : 'OFF'}`
   );
+
   log('1/6', 'Preparing Environment');
-  await executeCommand(
-    'node',
-    ['helpers/large-file-manager.js', 'join'],
-    rootDir
-  );
-  await executeCommand('node', ['helpers/cleanup.js'], rootDir);
+  // large-file-manager and cleanup are no longer needed
+  
   log('2/6', 'Selective Cleanup');
   if (fs.existsSync(releaseDir)) {
     cleanSpecificTargets(releaseDir, platformConfig.target);
   }
+
   log('3/6', 'Rebuilding Native Dependencies');
   await executeCommand(
     'npx',
     ['electron-builder', 'install-app-deps'],
     rootDir
   );
+
   log('4/6', 'Packaging');
-  const extraResources = [];
-  if (platformConfig.pythonSource) {
-    const pPath = path.join(rootDir, platformConfig.pythonSource);
-    if (fs.existsSync(pPath)) {
-      if (process.platform !== 'win32') {
-        try {
-          const binDir = path.join(pPath, 'bin');
-          if (fs.existsSync(binDir))
-            fs.readdirSync(binDir).forEach((f) =>
-              fs.chmodSync(path.join(binDir, f), '755')
-            );
-        } catch (e) {}
-      }
-      extraResources.push({
-        from: toPosix(platformConfig.pythonSource),
-        to: toPosix(platformConfig.pythonSource),
-        filter: platformConfig.excludePatterns
-          ? ['**/*', ...platformConfig.excludePatterns.map((p) => `!${p}`)]
-          : ['**/*'],
-      });
+  
+  const extraResources = [
+    {
+      from: 'binaries',
+      to: 'binaries',
+      filter: platformConfig.binaryFilter
     }
-  }
+  ];
+
   const buildConfig = {
     appId: 'com.vivestream.revived.app',
     productName: 'ViveStream Revived',
@@ -260,13 +257,13 @@ async function runBuild() {
       '!**/node_modules/*.d.ts',
       '!**/node_modules/.bin',
       '!vendor/**/*',
-      '!pyvenv/**/*',
+      '!binaries/**/*', // Exclude source binaries from asar (we use extraResources)
       '!**/.git/**',
       '!**/.github/**',
       '!**/helpers/**',
     ],
     extraResources: extraResources,
-    compression: 'store',
+    compression: 'normal',
     asar: true,
     win: {
       target: platformConfig.target,
@@ -290,15 +287,19 @@ async function runBuild() {
     },
     rpm: { fpm: ['--rpm-compression', 'bzip2'] },
   };
+
   fs.writeFileSync(tempConfigPath, JSON.stringify(buildConfig, null, 2));
+
   const builderArgs = [
     'electron-builder',
     '--config',
     'temp-build-config.json',
     platformConfig.cliFlag,
   ];
+
   if (shouldPublish) builderArgs.push('--publish', 'always');
   else builderArgs.push('--publish', 'never');
+
   try {
     await executeCommand('npx', builderArgs, rootDir);
   } catch (e) {
@@ -306,11 +307,15 @@ async function runBuild() {
       fs.unlinkSync(tempConfigPath);
     throw e;
   }
+
   if (!IS_DEBUG && fs.existsSync(tempConfigPath)) fs.unlinkSync(tempConfigPath);
+
   log('\n5/6', 'Cleaning Temp Files');
   if (!IS_DEBUG) cleanUnwantedFiles(releaseDir);
+
   logAlways(`${colors.green}   Build Successful!${colors.reset}`);
 }
+
 runBuild().catch((err) => {
   console.error(`\n${colors.red}[FATAL] ${err.message}${colors.reset}`);
   process.exit(1);
