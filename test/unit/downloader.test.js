@@ -153,8 +153,14 @@ describe('Downloader', () => {
   });
 
   test('resolves static ffmpeg binary when only Scripts directory is returned on Windows', async () => {
-    const originalPlatform = process.platform;
-    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const originalPlatform = Object.getOwnPropertyDescriptor(
+      process,
+      'platform'
+    );
+    Object.defineProperty(process, 'platform', {
+      value: 'win32',
+      configurable: true,
+    });
 
     const scriptsDir = path.join(
       'C:',
@@ -198,7 +204,7 @@ describe('Downloader', () => {
     expect(ffmpegIndex).toBeGreaterThan(-1);
     expect(args[ffmpegIndex + 1]).toBe(staticPath);
 
-    Object.defineProperty(process, 'platform', { value: originalPlatform });
+    Object.defineProperty(process, 'platform', originalPlatform);
     fs.existsSync.mockReset();
     fs.statSync.mockReset();
   });

@@ -129,6 +129,13 @@ class Downloader {
         const isExe = validFfmpegPath.toLowerCase().endsWith('ffmpeg.exe');
 
         if (!isExe) {
+          const isExecutableFile = (p) => {
+            try {
+              return fs.existsSync(p) && fs.statSync(p).isFile();
+            } catch {
+              return false;
+            }
+          };
           // If it doesn't end in ffmpeg.exe, assume it's a directory or incomplete path
           // Try appending ffmpeg.exe
           const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
@@ -160,19 +167,14 @@ class Downloader {
                 'win32',
                 'ffmpeg.exe'
               ),
-            ].find(
-              (p) => fs.existsSync(p) && fs.statSync(p).isFile()
-            ) || null;
-          if (fs.existsSync(tryPath) && fs.statSync(tryPath).isFile()) {
+            ].find((p) => isExecutableFile(p)) || null;
+          if (isExecutableFile(tryPath)) {
             validFfmpegPath = tryPath;
             this.emitLog(
               id,
               `[System] Corrected FFmpeg path to binary: ${validFfmpegPath}`
             );
-          } else if (
-            fs.existsSync(tryExe) &&
-            fs.statSync(tryExe).isFile()
-          ) {
+          } else if (isExecutableFile(tryExe)) {
             validFfmpegPath = tryExe;
             this.emitLog(
               id,
