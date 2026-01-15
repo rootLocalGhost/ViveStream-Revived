@@ -2,13 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const fse = require('fs-extra');
 const url = require('url');
+const { spawn } = require('child_process');
 const { parseArtistNames, parseYtDlpError } = require('./utils');
-const { spawnPython, getPythonDetails } = require('./python-core');
-const STATIC_FFMPEG_REL_PATHS = [
-  'Lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
-  'lib/site-packages/static_ffmpeg/bin/win32/ffmpeg.exe',
-  'static_ffmpeg/bin/win32/ffmpeg.exe',
-];
+const { getYtDlp, getFfmpeg } = require('./binaries');
+
 class Downloader {
   constructor({
     getSettings,
@@ -18,7 +15,6 @@ class Downloader {
     db,
     BrowserDiscovery,
     win,
-    resolveFfmpegPath,
   }) {
     this.queue = [];
     this.activeDownloads = new Map();
@@ -30,23 +26,27 @@ class Downloader {
     this.db = db;
     this.BrowserDiscovery = BrowserDiscovery;
     this.win = win;
-    this.resolveFfmpegPath = resolveFfmpegPath;
   }
+
   setWindow(win) {
     this.win = win;
   }
+
   updateSettings(s) {
     this.settings = s;
     this.processQueue();
   }
+
   addToQueue(jobs) {
     this.queue.push(...jobs);
     this.processQueue();
   }
+
   retryDownload(job) {
     this.queue.unshift(job);
     this.processQueue();
   }
+
   processQueue() {
     while (
       this.activeDownloads.size < this.settings.concurrentDownloads &&
@@ -61,6 +61,7 @@ class Downloader {
       });
     }
   }
+
   cancelDownload(videoId) {
     const p = this.activeDownloads.get(videoId);
     if (p) {
@@ -68,6 +69,7 @@ class Downloader {
       this.activeDownloads.delete(videoId);
     }
   }
+
   shutdown() {
     this.queue = [];
     for (const process of this.activeDownloads.values()) {
@@ -75,38 +77,50 @@ class Downloader {
     }
     this.activeDownloads.clear();
   }
+
   emitLog(id, text) {
     if (this.win) {
-      if (text.includes('No supported JavaScript runtime')) return;
       this.win.webContents.send('download-log', { id, text: text + '\n' });
     }
   }
+
   async startDownload(job) {
     const { videoInfo } = job;
     const { id } = videoInfo;
     this.emitLog(id, `[System]: Initializing download for: ${videoInfo.title}`);
+
     if (!this.activeDownloads.has(id)) return;
-    this.emitLog(id, `[System]: Resolving FFmpeg...`);
-    let resolvedFfmpegPath;
-    try {
-      resolvedFfmpegPath = await this.resolveFfmpegPath();
-      if (resolvedFfmpegPath) {
-        this.emitLog(id, `[System]: FFmpeg found at: ${resolvedFfmpegPath}`);
-      } else {
-        this.emitLog(
-          id,
-          `[System]: WARNING: FFmpeg NOT found. Fallback mode enabled.`
-        );
-      }
-    } catch (e) {
-      this.emitLog(id, `[System]: Error resolving FFmpeg: ${e.message}`);
+
+    // Resolve Binaries
+    const ytDlpPath = getYtDlp();
+    const ffmpegPath = getFfmpeg();
+    const ffmpegExists = fs.existsSync(ffmpegPath);
+
+    if (!fs.existsSync(ytDlpPath)) {
+       const errorMsg = `yt-dlp binary not found at: ${ytDlpPath}`;
+       this.emitLog(id, errorMsg);
+       this.win.webContents.send('download-error', {
+          id: id,
+          error: 'System Configuration Error: yt-dlp missing.',
+          fullLog: errorMsg,
+          job,
+        });
+        this.activeDownloads.delete(id);
+        this.processQueue();
+        return;
     }
-    if (!this.activeDownloads.has(id)) return;
+
+    if (ffmpegExists) {
+        this.emitLog(id, `[System]: FFmpeg found at: ${ffmpegPath}`);
+    } else {
+        this.emitLog(id, `[System]: WARNING: FFmpeg NOT found at ${ffmpegPath}. Fallback mode enabled.`);
+    }
+
     const requestUrl =
       videoInfo.webpage_url || `https://www.youtube.com/watch?v=${id}`;
+
+    // Construct Arguments
     let args = [
-      '-m',
-      'yt_dlp',
       requestUrl,
       '-o',
       path.join(this.videoPath, '%(id)s.%(ext)s'),
@@ -124,86 +138,16 @@ class Downloader {
       '--no-mtime',
       '--compat-options',
       'no-youtube-unavailable-videos',
+      '--js-runtimes',
+      'node',
     ];
-    if (resolvedFfmpegPath) {
-      // Ensure we are passing a file path, not a directory
-      let validFfmpegPath = resolvedFfmpegPath;
 
-      if (process.platform === 'win32') {
-        // Strict fix for Windows: Ensure path ends with ffmpeg.exe
-        const isExe = validFfmpegPath.toLowerCase().endsWith('ffmpeg.exe');
-
-        if (!isExe) {
-          const isExecutableFile = (p) => {
-            try {
-              return fs.existsSync(p) && fs.statSync(p).isFile();
-            } catch {
-              return false;
-            }
-          };
-          // If it doesn't end in ffmpeg.exe, assume it's a directory or incomplete path
-          // Try appending ffmpeg.exe
-          const tryPath = path.join(validFfmpegPath, 'ffmpeg.exe');
-          const tryExe = validFfmpegPath + '.exe';
-          const baseDir = path.dirname(validFfmpegPath);
-          let staticFfmpegPath = null;
-          for (const rel of STATIC_FFMPEG_REL_PATHS) {
-            const candidate = path.join(baseDir, rel);
-            if (isExecutableFile(candidate)) {
-              staticFfmpegPath = candidate;
-              break;
-            }
-          }
-          if (isExecutableFile(tryPath)) {
-            validFfmpegPath = tryPath;
-            this.emitLog(
-              id,
-              `[System] Corrected FFmpeg path to binary: ${validFfmpegPath}`
-            );
-          } else if (isExecutableFile(tryExe)) {
-            validFfmpegPath = tryExe;
-            this.emitLog(
-              id,
-              `[System] Appended extension to FFmpeg path: ${validFfmpegPath}`
-            );
-          } else if (staticFfmpegPath) {
-            validFfmpegPath = staticFfmpegPath;
-            this.emitLog(
-              id,
-              `[System] Using static_ffmpeg binary: ${validFfmpegPath}`
-            );
-          } else {
-            // If neither worked, we warn but keep original (it might be in PATH but user gave weird input?)
-            // Actually, if input was directory .../Scripts, checking .../Scripts/ffmpeg.exe covers it.
-            this.emitLog(
-              id,
-              `[System] WARNING: FFmpeg path does not end in ffmpeg.exe: ${validFfmpegPath}`
-            );
-          }
-        }
-      } else {
-        // Non-Windows logic (keep existing directory check)
-        try {
-            if (fs.existsSync(resolvedFfmpegPath)) {
-            const stat = fs.statSync(resolvedFfmpegPath);
-            if (stat.isDirectory()) {
-                const fixedPath = path.join(resolvedFfmpegPath, 'ffmpeg');
-                if (fs.existsSync(fixedPath) && fs.statSync(fixedPath).isFile()) {
-                    validFfmpegPath = fixedPath;
-                     this.emitLog(id, `[System] Corrected FFmpeg path to: ${validFfmpegPath}`);
-                }
-            }
-            }
-        } catch (e) {
-            console.error(`[Downloader] Error checking FFmpeg path: ${e.message}`);
-        }
-      }
-
-      // Pass full executable path to prevent ambiguity on Windows (e.g. searching 'Scripts' vs 'Scripts/ffmpeg.exe')
-      args.push('--ffmpeg-location', validFfmpegPath);
+    if (ffmpegExists) {
+      args.push('--ffmpeg-location', ffmpegPath);
     }
+
     if (job.downloadType === 'video') {
-      if (resolvedFfmpegPath) {
+      if (ffmpegExists) {
         const qualityFilter =
           job.quality === 'best' ? '' : `[height<=${job.quality}]`;
         const formatString = `bestvideo[ext=mp4]${qualityFilter}+bestaudio[ext=m4a]/bestvideo[vcodec^=avc]${qualityFilter}+bestaudio/best[ext=mp4]/best`;
@@ -220,7 +164,8 @@ class Downloader {
         if (this.settings.downloadAutoSubs) args.push('--write-auto-subs');
       }
     } else {
-      if (resolvedFfmpegPath) {
+      // Audio
+      if (ffmpegExists) {
         args.push(
           '-x',
           '--audio-format',
@@ -237,31 +182,40 @@ class Downloader {
         args.push('-f', 'bestaudio');
       }
     }
+
     if (job.liveFromStart) args.push('--live-from-start');
-    if (this.settings.removeSponsors && resolvedFfmpegPath)
+    if (this.settings.removeSponsors && ffmpegExists)
       args.push('--sponsorblock-remove', 'all');
     if (this.settings.concurrentFragments > 1)
       args.push(
         '--concurrent-fragments',
         this.settings.concurrentFragments.toString()
       );
+    
     const browserArg = this.BrowserDiscovery.resolveBrowser(
       this.settings.cookieBrowser
     );
     if (browserArg) {
       args.push('--cookies-from-browser', browserArg);
     }
+    
     if (this.settings.speedLimit) args.push('-r', this.settings.speedLimit);
-    const proc = spawnPython(args);
+
+    // Spawn Process
+    // Important: Use child_process.spawn directly
+    const proc = spawn(ytDlpPath, args);
     this.activeDownloads.set(id, proc);
+
     let stderrOutput = '';
     let stdoutOutput = '';
     let stallTimeout;
     const STALL_LIMIT = 120000;
+
     const resetStallTimer = () => {
       clearTimeout(stallTimeout);
       stallTimeout = setTimeout(() => {
-        const stallMsg = `\n[System]: Download stalled for ${
+        const stallMsg = `
+[System]: Download stalled for ${ 
           STALL_LIMIT / 1000
         }s. Killing process to prevent zombie.`;
         stderrOutput += stallMsg;
@@ -271,20 +225,22 @@ class Downloader {
         } catch (e) {}
       }, STALL_LIMIT);
     };
+
     resetStallTimer();
+
     proc.on('error', (err) => {
       clearTimeout(stallTimeout);
       console.error(`[Downloader] Spawn Error (${id}):`, err);
       const errorMsg = `Process failed to start: ${err.message}`;
-      if (err.code === 'ENOENT') {
-        stderrOutput +=
-          '\n[System]: Python or yt-dlp executable not found. Please checks settings or logs.';
-      }
-      stderrOutput += `\n${errorMsg}`;
+      
+      stderrOutput += `
+${errorMsg}`;
       this.emitLog(id, errorMsg);
+      
       if (this.activeDownloads.get(id) === proc) {
         this.activeDownloads.delete(id);
       }
+      
       if (this.win) {
         this.win.webContents.send('download-error', {
           id: id,
@@ -295,6 +251,7 @@ class Downloader {
       }
       this.processQueue();
     });
+
     proc.stdout.on('data', (data) => {
       resetStallTimer();
       const str = data.toString();
@@ -313,20 +270,29 @@ class Downloader {
         });
       }
     });
+
     proc.stderr.on('data', (data) => {
       resetStallTimer();
       const str = data.toString();
       stderrOutput += str;
       this.emitLog(id, str);
     });
+
     proc.on('close', async (code) => {
       clearTimeout(stallTimeout);
       if (this.activeDownloads.get(id) === proc) {
         this.activeDownloads.delete(id);
       }
-      const fullLog = `CMD: ${args.join(
+      const fullLog = `CMD: ${ytDlpPath} ${args.join(
         ' '
-      )}\n\nSTDOUT:\n${stdoutOutput}\n\nSTDERR:\n${stderrOutput}`;
+      )}
+
+STDOUT:
+${stdoutOutput}
+
+STDERR:
+${stderrOutput}`;
+
       if (code === 0) {
         await this.postProcess(videoInfo, job, fullLog);
       } else {
@@ -354,6 +320,7 @@ class Downloader {
       this.processQueue();
     });
   }
+
   async postProcess(videoInfo, job, fullLog) {
     try {
       const files = await fs.promises.readdir(this.videoPath);
@@ -466,5 +433,5 @@ class Downloader {
     }
   }
 }
-Downloader.STATIC_FFMPEG_REL_PATHS = STATIC_FFMPEG_REL_PATHS;
+
 module.exports = Downloader;
