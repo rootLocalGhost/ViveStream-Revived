@@ -339,7 +339,11 @@ ${stderrOutput}`;
       const info = JSON.parse(infoData);
       await fs.promises.unlink(infoJsonPath);
       const realId = info.id;
-      const mediaFile = files.find(
+
+      // Refresh file list to catch any file operations that completed in the meantime
+      const currentFiles = await fs.promises.readdir(this.videoPath);
+
+      const mediaFile = currentFiles.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
           !f.endsWith('.json') &&
@@ -351,7 +355,7 @@ ${stderrOutput}`;
       if (!mediaFile) throw new Error('Media file not found after download.');
       const mediaFilePath = path.join(this.videoPath, mediaFile);
       let finalCoverPath = null;
-      const thumbFile = files.find(
+      const thumbFile = currentFiles.find(
         (f) =>
           (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
           (f.endsWith('.jpg') || f.endsWith('.webp'))
@@ -366,7 +370,7 @@ ${stderrOutput}`;
         ? url.pathToFileURL(finalCoverPath).href
         : null;
       let subFileUri = null;
-      const subFile = files.find(
+      const subFile = currentFiles.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.vtt')
       );
       if (subFile) {
@@ -376,7 +380,7 @@ ${stderrOutput}`;
         });
         subFileUri = url.pathToFileURL(destSub).href;
       }
-      const descFile = files.find(
+      const descFile = currentFiles.find(
         (f) => f.startsWith(videoInfo.id) && f.endsWith('.description')
       );
       if (descFile)
