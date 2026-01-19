@@ -40,6 +40,8 @@ jobs:
           npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
         run: npm ci
+      - name: Initialize Vendor Binaries
+        run: npm run vendor:init
       - name: Verify Version
         shell: bash
         id: version_check
@@ -90,6 +92,8 @@ jobs:
           npm config set fetch-retry-maxtimeout 120000
       - name: Install NPM Dependencies
         run: npm ci
+      - name: Initialize Vendor Binaries
+        run: npm run vendor:init
       - name: Verify Windows Assets
         shell: powershell
         run: |

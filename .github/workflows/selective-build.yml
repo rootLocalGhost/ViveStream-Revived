@@ -41,6 +41,8 @@ jobs:
         run: npm cache clean --force
       - name: Install NPM Dependencies
         run: npm ci
+      - name: Initialize Vendor Binaries
+        run: npm run vendor:init
       - name: Verify Windows Assets
         shell: powershell
         run: |
@@ -88,6 +90,8 @@ jobs:
         run: npm cache clean --force
       - name: Install NPM Dependencies
         run: npm ci
+      - name: Initialize Vendor Binaries
+        run: npm run vendor:init
       - name: Build ${{ inputs.target }}
         shell: bash
         run: |
