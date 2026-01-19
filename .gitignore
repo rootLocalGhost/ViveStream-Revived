@@ -23,7 +23,4 @@ Release_Notes.md
 coverage/
 *.vivestream-build
 *.exe
-binaries/ffmpeg
-binaries/ffplay
-binaries/ffprobe
-binaries/yt-dlp_linux
+vendor
