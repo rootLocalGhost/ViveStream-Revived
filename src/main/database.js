@@ -100,11 +100,17 @@ function initialize(app, customPath = null) {
           table.integer('sortOrder');
           table.primary(['playlistId', 'videoId']);
           table.index('playlistId');
+          table.index(['playlistId', 'sortOrder'], 'idx_playlist_video_sort');
         });
       } else {
         try {
           await db.schema.alterTable('playlist_videos', (t) =>
             t.index('playlistId')
+          );
+        } catch (e) {}
+        try {
+          await db.schema.alterTable('playlist_videos', (t) =>
+            t.index(['playlistId', 'sortOrder'], 'idx_playlist_video_sort')
           );
         } catch (e) {}
       }
