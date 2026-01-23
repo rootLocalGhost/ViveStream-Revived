@@ -3,12 +3,10 @@ const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
 
-// Configuration
-const VENDOR_DIR = path.join(__dirname, '..', 'vendor');
-const BINARIES_DIR = path.join(VENDOR_DIR, 'binaries');
+// DIRECT FIX: Point directly to the root 'binaries' folder matching src/main/binaries.js
+const BINARIES_DIR = path.join(__dirname, '..', 'binaries');
 
-// Ensure directories exist
-if (!fs.existsSync(VENDOR_DIR)) fs.mkdirSync(VENDOR_DIR);
+// Ensure the folder exists
 if (!fs.existsSync(BINARIES_DIR)) fs.mkdirSync(BINARIES_DIR, { recursive: true });
 
 const URLS = {
@@ -32,7 +30,6 @@ async function downloadFile(url, destPath) {
   console.log(`⬇ Downloading: ${url}`);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to download ${url}: ${res.statusText}`);
-
   const arrayBuffer = await res.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   fs.writeFileSync(destPath, buffer);
@@ -50,7 +47,7 @@ function extractArchive(archivePath, extractDir) {
         execSync(`python3 -m zipfile -e "${archivePath}" "${extractDir}"`);
       }
     } else {
-      // Windows tar supports zip. Linux tar supports tar.*
+      // Tar usually handles zip on modern windows tar, or linux
       execSync(`tar -xf "${archivePath}" -C "${extractDir}"`);
     }
     console.log(`✔ Extracted.`);
@@ -67,10 +64,15 @@ async function initYtDlp() {
 
   const targets = [
     { platform: 'Windows', binaryName: 'yt-dlp.exe', destName: 'yt-dlp.exe' },
-    { platform: 'Linux', binaryName: 'yt-dlp_linux', destName: 'yt-dlp' }
+    { platform: 'Linux', binaryName: 'yt-dlp_linux', destName: 'yt-dlp_linux' } // Fixed name for Linux to match binaries.js
   ];
 
   for (const target of targets) {
+    // Only download for the current platform to save time/bandwidth, or download all if building
+    // For local dev, we prioritize current platform.
+    if (os.platform() === 'win32' && target.platform !== 'Windows') continue;
+    if (os.platform() === 'linux' && target.platform !== 'Linux') continue;
+
     const url = `https://github.com/${repo}/releases/download/${tag}/${target.binaryName}`;
     const destPath = path.join(BINARIES_DIR, target.destName);
 
@@ -78,36 +80,12 @@ async function initYtDlp() {
     let needsUpdate = true;
 
     if (fs.existsSync(destPath)) {
-      // If we are on the native platform, we can try to check version
-      // But since we are downloading Cross-Platform, we can't easily check version of .exe on Linux.
-      // We rely on tag comparison? No, we don't store tag locally except for ffmpeg.
-      // Let's assume if file exists, we check if we should update.
-      // Simplest strategy: Always download if tag is new? We need a state file.
-      // OR: We try to run it if current platform matches.
-
-      if (os.platform() === 'win32' && target.platform === 'Windows') {
+      const versionFile = path.join(BINARIES_DIR, 'yt-dlp-version.json');
+      if (fs.existsSync(versionFile)) {
         try {
-          currentVersion = execSync(`"${destPath}" --version`).toString().trim();
-          if (currentVersion === tag) needsUpdate = false;
+          const info = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+          if (info.tag === tag) needsUpdate = false;
         } catch (e) { }
-      } else if (os.platform() === 'linux' && target.platform === 'Linux') {
-        try {
-          currentVersion = execSync(`"${destPath}" --version`).toString().trim();
-          if (currentVersion === tag) needsUpdate = false;
-        } catch (e) { }
-      } else {
-        // Cross-platform check. Difficult without metadata.
-        // We'll trust the ffmpeg-version.json strategy or creating a yt-dlp-version.json?
-        // Or just download to be safe? 
-        // "verify if the file is already downloaded... if yes, it will not download... also... check that everything is latest"
-        // I will implement a metadata file for yt-dlp too.
-        const versionFile = path.join(BINARIES_DIR, 'yt-dlp-version.json');
-        if (fs.existsSync(versionFile)) {
-          try {
-            const info = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
-            if (info.tag === tag) needsUpdate = false;
-          } catch (e) { }
-        }
       }
     }
 
@@ -119,7 +97,6 @@ async function initYtDlp() {
     console.log(`🔄 Updating yt-dlp (${target.platform}) to ${tag}...`);
     await downloadFile(url, destPath);
 
-    // Update metadata
     const versionFile = path.join(BINARIES_DIR, 'yt-dlp-version.json');
     let info = {};
     if (fs.existsSync(versionFile)) {
@@ -153,29 +130,33 @@ async function initFFmpeg() {
     } catch (e) { }
   }
 
-  // If latestID matches and we have all files, skip
   let allFilesExist = true;
-  for (const t of targets) {
-    for (const b of t.binaries) {
-      if (!fs.existsSync(path.join(BINARIES_DIR, b))) {
-        allFilesExist = false;
-        break;
+  // Check if binaries for CURRENT platform exist
+  const currentTarget = targets.find(t => (os.platform() === 'win32' ? t.platform === 'Windows' : t.platform === 'Linux'));
+  if (currentTarget) {
+      for (const b of currentTarget.binaries) {
+        if (!fs.existsSync(path.join(BINARIES_DIR, b))) {
+            allFilesExist = false;
+            break;
+        }
       }
-    }
   }
 
   if (currentInfo.id === latestID && allFilesExist) {
-    console.log('✅ FFmpeg (Windows & Linux) is up to date.');
+    console.log('✅ FFmpeg is up to date.');
     return;
   }
 
-  // We need to update
   console.log('🔄 Updating FFmpeg binaries...');
   const tempDir = path.join(os.tmpdir(), 'vivestream-ffmpeg-temp');
   if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
   fs.mkdirSync(tempDir);
 
   for (const t of targets) {
+    // Only download for current platform during dev init
+    if (os.platform() === 'win32' && t.platform !== 'Windows') continue;
+    if (os.platform() === 'linux' && t.platform !== 'Linux') continue;
+
     const filename = `ffmpeg-master-latest-${t.osStr}-gpl.${t.ext}`;
     const url = `https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/${filename}`;
     const archivePath = path.join(tempDir, filename);
@@ -183,17 +164,8 @@ async function initFFmpeg() {
     await downloadFile(url, archivePath);
     extractArchive(archivePath, tempDir);
 
-    // Find extracted dir
-    // Note: extracting multiple times into tempDir might cause confusion if names overlap?
-    // Usually names are distinct: ffmpeg-master-latest-linux64-gpl vs ...-win64-...
-    // But tar/zip extraction behavior: 
-    // zip usually extracts to a folder inside. tar.xz too.
-    // Let's find the new folder.
     const files = fs.readdirSync(tempDir).filter(f => f !== filename && fs.statSync(path.join(tempDir, f)).isDirectory());
-    // We might have multiple folders if we loop. Best to clean tempDir or scope it.
-    // I'll filter for the one matching current OS string maybe?
-
-    const extractedFolder = files.find(f => f.includes(t.osStr)); // e.g. includes 'linux64' or 'win64'
+    const extractedFolder = files.find(f => f.includes(t.osStr)); 
 
     if (extractedFolder) {
       const folderPath = path.join(tempDir, extractedFolder);
@@ -211,18 +183,10 @@ async function initFFmpeg() {
           console.warn(`⚠ Could not find ${b} in extracted archive`);
         }
       });
-    } else {
-      // Fallback if folder name doesn't contain osStr (unlikely but possible)
-      // Just take the first one that is not processed?
-      // To be safe, let's clear tempDir inside the loop logic? No, expensive to recreate logic.
-      // I'll just clean files after each iteration or use specific subdirectory.
     }
   }
 
-  // Update version info
   fs.writeFileSync(versionFile, JSON.stringify({ id: latestID, date: new Date() }));
-
-  // Cleanup
   fs.rmSync(tempDir, { recursive: true, force: true });
 }
 
@@ -234,7 +198,6 @@ async function initSolvers() {
     const file = files[i];
     const url = urls[i];
     const targetPath = path.join(BINARIES_DIR, file);
-
     if (!fs.existsSync(targetPath)) {
       console.log(`⬇ Downloading missing solver: ${file}`);
       await downloadFile(url, targetPath);
@@ -260,7 +223,8 @@ async function copyLibs() {
       fs.copyFileSync(lib.src, lib.dest);
       console.log(`   ✔ Copied: ${path.basename(lib.src)}`);
     } else {
-      console.error(`   ❌ Missing: ${lib.src}\n      (Run 'npm install' first)`);
+      // Don't crash if node_modules missing, might be pre-install
+      console.warn(`   ⚠ Missing source lib: ${lib.src} (Run npm install first)`);
     }
   });
 }

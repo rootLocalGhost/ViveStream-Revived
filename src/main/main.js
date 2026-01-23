@@ -22,6 +22,7 @@ const { getYtDlp, getFfmpeg } = require('./binaries');
 const Downloader = require('./downloader');
 const BrowserDiscovery = require('./browser-discovery');
 
+// Optimization flags
 app.commandLine.appendSwitch('enable-begin-frame-scheduling');
 app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -36,7 +37,6 @@ app.commandLine.appendSwitch(
 app.setName('ViveStream');
 
 const isDev = !app.isPackaged;
-
 const userHomePath = app.getPath('home');
 const viveStreamPath = path.join(userHomePath, 'ViveStream');
 const videoPath = path.join(viveStreamPath, 'videos');
@@ -45,6 +45,7 @@ const playlistCoverPath = path.join(coverPath, 'playlists');
 const artistCoverPath = path.join(coverPath, 'artists');
 const subtitlePath = path.join(viveStreamPath, 'subtitles');
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+
 const mediaPaths = [
   videoPath,
   coverPath,
@@ -99,6 +100,7 @@ function saveSettings(settings) {
     JSON.stringify({ ...getSettings(), ...settings }, null, 2)
   );
 }
+
 if (!fs.existsSync(settingsPath)) saveSettings(defaultSettings);
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -127,7 +129,6 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     try {
       console.log('App Ready.');
-
       await db.initialize(app);
 
       if (!externalFilePath) {
@@ -166,7 +167,6 @@ function getFileFromArgs(argv) {
 }
 
 function sanitizeFilename(filename) {
-  // eslint-disable-next-line no-control-regex
   return filename.replace(/[\\/:\"*?<>|]/g, '_');
 }
 
@@ -247,6 +247,7 @@ app.on('before-quit', async () => {
   downloader.shutdown();
   await db.shutdown();
 });
+
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit());
 app.on('activate', () => !win && createWindow());
@@ -259,7 +260,6 @@ ipcMain.on('maximize-window', () =>
 ipcMain.on('close-window', () => win.close());
 ipcMain.on('tray-window', () => win.hide());
 
-// Security: Validate URLs before opening
 ipcMain.on('open-external', (e, u) => {
   try {
     const parsed = new url.URL(u);
@@ -278,7 +278,6 @@ ipcMain.handle('open-database-folder', () =>
   shell.openPath(app.getPath('userData'))
 );
 ipcMain.handle('open-vendor-folder', () => {
-  // Point to binaries folder (isDev logic handled in binaries.js but we want the folder here)
   const binPath = isDev 
     ? path.join(__dirname, '..', '..', 'binaries')
     : path.join(process.resourcesPath, 'binaries');
@@ -287,10 +286,12 @@ ipcMain.handle('open-vendor-folder', () => {
 
 ipcMain.handle('get-settings', getSettings);
 ipcMain.handle('get-app-version', () => app.getVersion());
+
 ipcMain.on('save-settings', (e, s) => {
   saveSettings(s);
   downloader.updateSettings(getSettings());
 });
+
 ipcMain.handle('reset-app', () => {
   saveSettings(defaultSettings);
   if (win) win.webContents.send('clear-local-storage');
@@ -300,10 +301,12 @@ ipcMain.handle('reset-app', () => {
 ipcMain.handle('get-library', () => db.getLibrary());
 ipcMain.handle('video:get-details', (e, id) => db.getVideoById(id));
 ipcMain.handle('toggle-favorite', (e, id) => db.toggleFavorite(id));
+
 ipcMain.handle('clear-all-media', async () => {
   for (const dir of mediaPaths) await fse.emptyDir(dir);
   return await db.clearAllMedia();
 });
+
 ipcMain.handle('db:delete', async () => {
   await db.shutdown();
   const p = path.join(app.getPath('userData'), 'ViveStream.db');
@@ -311,6 +314,7 @@ ipcMain.handle('db:delete', async () => {
   app.relaunch();
   app.exit(0);
 });
+
 ipcMain.handle('delete-video', async (e, id) => {
   const v = await db.getVideoById(id);
   if (!v) return { success: false };
@@ -326,9 +330,11 @@ ipcMain.handle('delete-video', async (e, id) => {
   });
   return await db.deleteVideo(id);
 });
+
 ipcMain.handle('video:update-metadata', (e, id, meta) =>
   db.updateVideoMetadata(id, meta)
 );
+
 ipcMain.handle('videos:touch', (e, ids) =>
   db
     .db('videos')
@@ -337,7 +343,33 @@ ipcMain.handle('videos:touch', (e, ids) =>
 );
 
 ipcMain.on('download-video', (e, { downloadOptions, jobId }) => {
+  // --- VALIDATION: Prevent empty URL spawn ---
+  if (!downloadOptions || !downloadOptions.url || typeof downloadOptions.url !== 'string') {
+    if (win) {
+      win.webContents.send('download-info-error', {
+        jobId,
+        error: 'Invalid or missing URL.',
+        fullLog: 'The URL provided to the downloader was empty or invalid.'
+      });
+    }
+    return;
+  }
+
   const ytDlpPath = getYtDlp();
+
+  // --- VALIDATION: Ensure binary exists ---
+  if (!fs.existsSync(ytDlpPath)) {
+    console.error(`yt-dlp binary missing at: ${ytDlpPath}`);
+    if (win) {
+      win.webContents.send('download-info-error', {
+        jobId,
+        error: 'System Error: yt-dlp binary missing.',
+        fullLog: `Could not find binary at: ${ytDlpPath}\nPlease run 'npm run vendor:init'`
+      });
+    }
+    return;
+  }
+
   const args = [
     downloadOptions.url,
     '--dump-json',
@@ -346,8 +378,8 @@ ipcMain.on('download-video', (e, { downloadOptions, jobId }) => {
     '--js-runtimes',
     'node',
   ];
-  const s = getSettings();
 
+  const s = getSettings();
   const browserArg = BrowserDiscovery.resolveBrowser(s.cookieBrowser);
   if (browserArg) {
     args.push('--cookies-from-browser', browserArg);
@@ -410,10 +442,6 @@ ipcMain.on('cancel-download', (e, id) => downloader.cancelDownload(id));
 ipcMain.on('retry-download', (e, job) => downloader.retryDownload(job));
 
 ipcMain.handle('updater:check-yt-dlp', async () => {
-    // With standalone binaries, we don't support auto-update via pip anymore.
-    // For now, simply return success so the UI doesn't error out, 
-    // or we could return false to indicate no update performed.
-    // User requested "Shift to executable binary", so pip update is obsolete.
     return { success: true };
 });
 
@@ -425,8 +453,8 @@ ipcMain.handle('media:import-files', async () => {
 
   const ytDlpPath = getYtDlp();
   const ffmpegPath = getFfmpeg();
-
   let count = 0;
+
   for (let i = 0; i < filePaths.length; i++) {
     const fp = filePaths[i];
     try {
@@ -495,14 +523,13 @@ ipcMain.handle('media:import-files', async () => {
         source: 'local',
         type: meta.vcodec && meta.vcodec !== 'none' ? 'video' : 'audio',
       };
-      await db.addOrUpdateVideo(vData);
 
+      await db.addOrUpdateVideo(vData);
       const artistNames = parseArtistNames(vData.creator);
       for (const name of artistNames) {
         const artist = await db.findOrCreateArtist(name, coverUri);
         if (artist) await db.linkVideoToArtist(id, artist.id);
       }
-
       count++;
     } catch (e) {
       console.error(e);
