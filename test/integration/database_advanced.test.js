@@ -123,4 +123,11 @@ describe('Advanced Database Logic', () => {
     expect(all.length).toBe(1);
     expect(all[0].name).toBe('Busy Artist');
   });
+
+  test('should have composite index on playlist_videos', async () => {
+    const db = database.getDB();
+    const indexes = await db.raw("PRAGMA index_list('playlist_videos')");
+    const hasIndex = indexes.some(idx => idx.name === 'idx_playlist_video_sort');
+    expect(hasIndex).toBe(true);
+  });
 });
