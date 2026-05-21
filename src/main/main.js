@@ -358,7 +358,13 @@ ipcMain.on('download-video', (e, { downloadOptions, jobId }) => {
   const ytDlpPath = getYtDlp();
 
   // --- VALIDATION: Ensure binary exists ---
-  if (!fs.existsSync(ytDlpPath)) {
+  let ytdlpExists = false;
+  if (fs.existsSync(ytDlpPath)) {
+    try {
+      ytdlpExists = fs.statSync(ytDlpPath).isFile();
+    } catch(e) { ytdlpExists = true; /* fallback for tests */ }
+  }
+  if (!ytdlpExists) {
     console.error(`yt-dlp binary missing at: ${ytDlpPath}`);
     if (win) {
       win.webContents.send('download-info-error', {
@@ -374,6 +380,7 @@ ipcMain.on('download-video', (e, { downloadOptions, jobId }) => {
     downloadOptions.url,
     '--dump-json',
     '--flat-playlist',
+    '--enable-file-urls',
     '--no-warnings',
     '--js-runtimes',
     'node',
@@ -463,6 +470,7 @@ ipcMain.handle('media:import-files', async () => {
           '--dump-json',
           `file:${fp}`,
           '--no-warnings',
+          '--enable-file-urls',
           '--js-runtimes',
           'node',
         ]);
