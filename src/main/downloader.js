@@ -94,9 +94,20 @@ class Downloader {
     // Resolve Binaries
     const ytDlpPath = getYtDlp();
     const ffmpegPath = getFfmpeg();
-    const ffmpegExists = fs.existsSync(ffmpegPath);
+    let ffmpegExists = false;
+    if (fs.existsSync(ffmpegPath)) {
+      try {
+        ffmpegExists = fs.statSync(ffmpegPath).isFile();
+      } catch(e) { ffmpegExists = true; /* fallback for tests */ }
+    }
 
-    if (!fs.existsSync(ytDlpPath)) {
+    let ytdlpExists = false;
+    if (fs.existsSync(ytDlpPath)) {
+      try {
+        ytdlpExists = fs.statSync(ytDlpPath).isFile();
+      } catch(e) { ytdlpExists = true; /* fallback for tests */ }
+    }
+    if (!ytdlpExists) {
        const errorMsg = `yt-dlp binary not found at: ${ytDlpPath}`;
        this.emitLog(id, errorMsg);
        this.win.webContents.send('download-error', {
@@ -138,6 +149,7 @@ class Downloader {
       '--no-mtime',
       '--compat-options',
       'no-youtube-unavailable-videos',
+      '--enable-file-urls',
       '--js-runtimes',
       'node',
     ];
@@ -329,7 +341,7 @@ ${stderrOutput}`;
       );
       if (!infoFile) {
         infoFile = files.find(
-          (f) => f.startsWith(videoInfo.id) && f.endsWith('.info.json')
+          (f) => f.startsWith(videoInfo.id + '.') && f.endsWith('.info.json')
         );
       }
       if (!infoFile)
@@ -345,7 +357,7 @@ ${stderrOutput}`;
 
       const mediaFile = currentFiles.find(
         (f) =>
-          (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
+          (f.startsWith(videoInfo.id + '.') || f.startsWith(realId + '.')) &&
           !f.endsWith('.json') &&
           !f.endsWith('.description') &&
           !f.endsWith('.jpg') &&
@@ -357,7 +369,7 @@ ${stderrOutput}`;
       let finalCoverPath = null;
       const thumbFile = currentFiles.find(
         (f) =>
-          (f.startsWith(videoInfo.id) || f.startsWith(realId)) &&
+          (f.startsWith(videoInfo.id + '.') || f.startsWith(realId + '.')) &&
           (f.endsWith('.jpg') || f.endsWith('.webp'))
       );
       if (thumbFile) {
@@ -371,7 +383,7 @@ ${stderrOutput}`;
         : null;
       let subFileUri = null;
       const subFile = currentFiles.find(
-        (f) => f.startsWith(videoInfo.id) && f.endsWith('.vtt')
+        (f) => f.startsWith(videoInfo.id + '.') && f.endsWith('.vtt')
       );
       if (subFile) {
         const destSub = path.join(this.subtitlePath, `${info.id}.vtt`);
@@ -381,7 +393,7 @@ ${stderrOutput}`;
         subFileUri = url.pathToFileURL(destSub).href;
       }
       const descFile = currentFiles.find(
-        (f) => f.startsWith(videoInfo.id) && f.endsWith('.description')
+        (f) => f.startsWith(videoInfo.id + '.') && f.endsWith('.description')
       );
       if (descFile)
         await fs.promises.unlink(path.join(this.videoPath, descFile));
